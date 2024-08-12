@@ -27,6 +27,9 @@ const sequelize = new Sequelize(process.env.DB_NAME || 'banking', process.env.DB
   db.banks = require(`./banksModel`)(sequelize,DataTypes)
   db.deposits = require(`./depositModel`)(sequelize,DataTypes)
   db.kycs = require(`./kycModel`)(sequelize,DataTypes)
+  db.adminbanks = require(`./adminBank`)(sequelize,DataTypes)
+  db.verifications = require(`./verificationsModel`)(sequelize,DataTypes)
+  db.transfers = require(`./transferModel`)(sequelize,DataTypes)
 
   //One to Many relationships
   db.users.hasMany(db.notifications,{foreignKey:'user', as:'usernotify'})
@@ -37,6 +40,11 @@ const sequelize = new Sequelize(process.env.DB_NAME || 'banking', process.env.DB
   db.users.hasMany(db.banks, {foreignKey:"userid" ,as:"userbanks"})
   db.users.hasMany(db.deposits, {foreignKey:"userid" ,as:"userdeposits"})
   db.users.hasOne(db.kycs, {foreignKey:"userid" ,as:"userkycs"})
+  db.users.hasMany(db.verifications, {foreignKey:"userid" ,as:"userverify"})
+  db.users.hasMany(db.transfers, {foreignKey:"userid" ,as:"usertransfers"})
+  db.transfers.hasMany(db.verifications, {foreignKey:"transferid" ,as:"verifications"})
+
+
 
  //One to One relationship
   db.notifications.belongsTo(db.users,{foreignKey:'user',as:'usernotify'})
@@ -47,6 +55,10 @@ const sequelize = new Sequelize(process.env.DB_NAME || 'banking', process.env.DB
   db.banks.belongsTo(db.users, {foreignKey:"userid" ,as:"userbanks"})
   db.deposits.belongsTo(db.users, {foreignKey:"userid" ,as:"userdeposits"})
   db.kycs.belongsTo(db.users, {foreignKey:"userid" ,as:"userkycs"})
+  db.verifications.belongsTo(db.users, {foreignKey:"userid" ,as:"userverify"}) 
+  db.verifications.belongsTo(db.transfers, {foreignKey:"transferid" ,as:"verifications"}) 
+  db.transfers.belongsTo(db.users, {foreignKey:"userid" ,as:"usertransfers"}) 
+  
 
   db.sequelize.sync({force: false})
   .then(() => console.log('Connection has been established successfully'))

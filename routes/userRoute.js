@@ -1,5 +1,5 @@
 const { userMiddleware } = require('../auth/UserAuth')
-const { SignupUserAccount, GetUserProfile, LoginAcc, logOutUser, GetAllSavings, CreateSavings, getAllCurrentSavings, requestLoan, ChangeProfileImage, EditProfile, TopUp, getTransHistory, DeleteGoal, createCards, getAllUserCards, getUserNotifications, MarkReadNotifications, findUserAccount, ChangeUserPassword, ChangeAccountEmail, RequestEmailOtp, MarkAllAsRead, getBankList, addBank, Deposit } = require('../controllers/userController')
+const { SignupUserAccount, GetUserProfile, LoginAcc, logOutUser, GetAllSavings, CreateSavings, getAllCurrentSavings, requestLoan, ChangeProfileImage, EditProfile, TopUp, getTransHistory, DeleteGoal, createCards, getAllUserCards, getUserNotifications, MarkReadNotifications, findUserAccount, ChangeUserPassword, ChangeAccountEmail, RequestEmailOtp, MarkAllAsRead, getBankList, addBank, Deposit, CreateTransfer, getTransfers, getVerifications, getAdminBanks, SubmitTransferProof, getAllTransfers } = require('../controllers/userController')
 
 const router = require('express').Router()
 
@@ -23,12 +23,18 @@ router.get('/total-savings', userMiddleware, getAllCurrentSavings)
 router.post('/top-up', userMiddleware, TopUp)
 router.post('/deposit', userMiddleware,Deposit)
 
-//loans/cards/banks
+//loans/cards/banks/transfers
 router.post('/create-card',userMiddleware, createCards)
 router.get('/user-cards', userMiddleware, getAllUserCards)
 router.get('/request-loan', userMiddleware, requestLoan)
 router.get('/get-user-banks',userMiddleware,getBankList)
 router.post('/add-bank',userMiddleware,addBank)
+router.post('/transfer', userMiddleware, CreateTransfer)
+router.get('/find-transfers', userMiddleware, getTransfers)
+router.get('/find-verifications', userMiddleware, getVerifications)
+router.get('/admin-banks', userMiddleware, getAdminBanks)
+router.get('/user-transfers', userMiddleware, getAllTransfers)
+router.post('/upload-proof', userMiddleware, SubmitTransferProof)
 
 
 //transhistory and notifications

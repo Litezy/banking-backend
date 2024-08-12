@@ -15,6 +15,9 @@ const slug = require('slug')
 const axios = require('axios')
 const Deposit = require('../models').deposits
 const KYC = require('../models')
+const Transfer = require('../models').transfers
+const Verification = require('../models').verifications
+const adminBank = require('../models').adminbanks
 
 
 
@@ -35,6 +38,20 @@ exports.SignupUserAccount = async (req, res) => {
     if (checkEmail) return res.json({ status: 400, msg: "Email already exists with us" })
     const checkPhone = await User.findOne({ where: { phone } })
     if (checkPhone) return res.json({ status: 400, msg: "Phone number already exists with us" })
+    let Currency;
+    try {
+      const response = await axios.get(`https://restcountries.com/v3.1/name/${country}`);
+      if (response.data && response.data.length > 0) {
+        const countryData = response.data[0];
+        const currencySymbol = Object.values(countryData.currencies)[0].symbol;
+        Currency = currencySymbol;
+      } else {
+        console.error('Unexpected response format:', response);
+      }
+    } catch (apiError) {
+      console.error('Error fetching currency:', apiError);
+      return res.status(500).json({ status: 500, msg: 'Failed to fetch currency information' });
+    }
     const Otp = otpgenerator.generate(10, { specialChars: false, lowerCaseAlphabets: false, upperCaseAlphabets: false })
     User.create({
       firstname,
@@ -49,6 +66,7 @@ exports.SignupUserAccount = async (req, res) => {
       refid: phone,
       account_number: Otp,
       status: 'online',
+      curency: Currency,
       lastlogin: moment().format('DD-MM-YYYY hh:mmA')
     })
     return res.json({ status: 200, msg: ' Acount created successfully' })
@@ -573,7 +591,7 @@ exports.getTransHistory = async (req, res) => {
     if (!findAcc) return res.hson({ status: 404, msg: 'Account not found' })
     const findHistory = await TransHistory.findAll({
       where: { userid: findAcc.id },
-      order: [['date', 'DESC']]
+      order: [['date', 'ASC']]
     })
     if (!findHistory) return res.json({ status: 404, msg: 'Transaction history not found' })
     return res.json({ status: 200, msg: 'Transaction history fetched successfully', data: findHistory })
@@ -658,7 +676,7 @@ exports.SubmitKYC = async (req, res) => {
     if (findUserKyc) return res.json({ statsu: 404, msg: 'You already have submitted Kyc, please wait for approval' })
     const findApproveduser = await KYC.findOne({ where: { userid: req.user, status: 'verified' } })
     if (findApproveduser) return res.json({ status: 404, msg: 'Sorry, your account is already verified' })
-    const { firstname, lastname,  marital, dob, address, zip, id_type, id_number } = req.body
+    const { firstname, lastname, marital, dob, address, zip, id_type, id_number } = req.body
     if (!firstname) return res.json({ status: 404, msg: 'Firstname is required' })
     if (!lastname) return res.json({ status: 404, msg: 'Lastname is required' })
     if (!marital) return res.json({ status: 404, msg: 'Marital status is required' })
@@ -719,5 +737,114 @@ exports.SubmitKYC = async (req, res) => {
     return res.json({ status: 200, msg: 'Kyc details submitted successfully', data: newKyc })
   } catch (error) {
     return res.json({ status: 500, msg: error.message })
+  }
+}
+
+//create transfers
+
+exports.CreateTransfer = async (req, res) => {
+  try {
+    const { acc_no, acc_name, bank_name, route, amount } = req.body
+    if (!acc_name || !acc_no || !bank_name || !amount) return res.json({ status: 404, msg: "Incomplete request" })
+    const findUser = await User.findOne({ where: { id: req.user } })
+    if (!findUser) return res.json({ status: 404, msg: 'User not found' })
+    findPendingTransfer = await Transfer.findOne({ where: { status: 'pending' } })
+    if (findPendingTransfer) return res.json({ status: 404, msg: 'Sorry you have a pending transaction, wait for completion before proceeding with new one' })
+    const transfer = await Transfer.create({
+      acc_name, acc_no, bank_name, route, amount, userid: findUser.id
+    })
+    return res.json({ status: 200, msg: "Transfer created successfully", data: transfer })
+  } catch (error) {
+    return res.json({ status: 500, msg: error.message })
+  }
+}
+
+exports.getTransfers = async (req, res) => {
+  try {
+    const user = req.user
+    if (!user) return res.json({ status: 404, msg: "Account not found" })
+    const findTransfers = await Transfer.findAll({ where: { userid: user } })
+    if (!findTransfers) return res.json({ status: 404, msg: 'Transfers not found' })
+    return res.json({ status: 200, msg: 'fetched success', data: findTransfers })
+  } catch (error) {
+    return res.json({ status: 500, msg: error.message })
+  }
+}
+exports.getVerifications = async (req, res) => {
+  try {
+    const user = req.user
+    if (!user) return res.json({ status: 404, msg: "Account not found" })
+    const findVerifications = await Verification.findOne({ where: { userid: user } })
+    if (!findVerifications) return res.json({ status: 404, msg: 'Verifications not found' })
+    return res.json({ status: 200, msg: 'fetched success', data: findVerifications })
+  } catch (error) {
+    return res.json({ status: 500, msg: error.message })
+  }
+}
+
+exports.getAdminBanks = async (req, res) => {
+  try {
+    const findUser = await User.findOne({ where: { id: req.user } })
+    if (!findUser) return res.json({ status: 404, msg: 'Unauthorized access to this route' })
+    const banks = await adminBank.findAll({ where: { hidden: 'false' } })
+    if (!banks) return res.json({ status: 404, msg: 'Banks not found' })
+    return res.json({ status: 200, msg: 'fetched successfully', data: banks })
+  } catch (error) {
+    return res.json({ status: 500, msg: error.message })
+  }
+}
+
+
+exports.SubmitTransferProof = async (req, res) => {
+  try {
+    if (!req.files) return res.json({ status: 404, msg: 'Proof of payment is required' });
+    const user = req.user
+    const findAcc = await User.findOne({ where: { id: req.user } });
+    if (!findAcc) return res.json({ status: 404, msg: "Account not found" });
+    const findVerify = await Verification.findOne({ where: { userid: user } })
+    if (!findVerify) return res.json({ status: 404, msg: "Verification missing" });
+
+    // console.log(findVerify)
+    const image = req?.files?.image;
+    let imageName;
+
+    if (image) {
+      if (image.size >= 1000000) return res.json({ status: 404, msg: `Cannot upload up to 1MB` });
+      if (!image.mimetype.startsWith('image/')) return res.json({ status: 400, msg: `Invalid image format (jpg, jpeg, png, svg, gif, webp)` });
+    }
+
+    const filepath = `./public/transfers/${findAcc?.firstname}`;
+    if (!fs.existsSync(filepath)) {
+      fs.mkdirSync(filepath, { recursive: true });
+    }
+    imageName = `${slug(findAcc?.firstname)}-transfer.jpg`;
+    const oldImagePath = path.join(filepath, imageName);
+    if (fs.existsSync(oldImagePath)) {
+      fs.unlinkSync(oldImagePath);
+    }
+    findVerify.amount = ''
+    findVerify.message = ''
+    findVerify.image = imageName
+    await findVerify.save()
+    await image.mv(path.join(filepath, imageName));
+    return res.json({ status: 200, msg: 'Proof of payment upload success', data: findVerify });
+  } catch (error) {
+    return res.json({ status: 500, msg: error.message });
+  }
+};
+
+exports.getAllTransfers = async (req, res) => {
+  try {
+    const findAcc = await User.findOne({ where: { id: req.user } });
+    if (!findAcc) return res.json({ status: 404, msg: "Account not found" });
+    const transfer = await Transfer.findAll({
+      include: [
+        { model: Verification, as: 'verifications' }
+      ]
+    })
+    if (!transfer) return res.json({ status: 404, msg: "Transfer not found" })
+    return res.json({ status: 200, msg: 'success', data: transfer })
+  } catch (error) {
+    return res.json({ status: 500, msg: error.message });
   }
 }

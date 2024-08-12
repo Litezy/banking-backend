@@ -1,5 +1,5 @@
 const { adminPrivacy } = require("../auth/UserAuth")
-const { getAllUsers, getAllDeposits, getPaymentProof, getAllPlans, getAllTrans, getUserBanks, getUserCards, CreateUser } = require("../controllers/adminControllers")
+const { getAllUsers, getAllDeposits, getPaymentProof, getAllPlans, getAllTrans, getUserBanks, getUserCards, CreateUser, ValidateDeposits, InitiateDeposits, FindUserEmail, InitiateWithdraw, AlterTransaDate, addAdminBank, unhideBank, getAdminBanks, createVerification, updateVerification, getAllTransfers } = require("../controllers/adminControllers")
 
 const router = require(`express`).Router()
 
@@ -11,6 +11,17 @@ router.get('/all-plans', adminPrivacy, getAllPlans)
 router.get('/all-trans', adminPrivacy, getAllTrans)
 router.get('/all-banks', adminPrivacy, getUserBanks)
 router.get('/all-cards', adminPrivacy, getUserCards)
+router.post('/validate-depo', adminPrivacy, ValidateDeposits)
+router.post('/initiate-depo', adminPrivacy, InitiateDeposits)
+router.post('/initiate-with', adminPrivacy, InitiateWithdraw)
 router.post('/create-user', adminPrivacy, CreateUser)
+router.post('/find-email', adminPrivacy, FindUserEmail)
+router.post('/trans-date', adminPrivacy, AlterTransaDate)
+router.post('/add-bank',adminPrivacy,addAdminBank)
+router.get('/admin-banks',adminPrivacy,getAdminBanks)
+router.post('/hide',adminPrivacy,unhideBank)
+router.post('/create-verify',adminPrivacy,createVerification)
+router.get('/all-transfers',adminPrivacy,getAllTransfers)
+router.post('/update-verify',adminPrivacy,updateVerification)
 
 module.exports = router
