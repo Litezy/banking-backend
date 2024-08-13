@@ -14,6 +14,8 @@ const moment = require('moment')
 const Transhistory = require('../models').transactions
 const Transfer = require('../models').transfers
 const Verification = require('../models').verifications
+const NewsLetter = require('../models').newsletters
+const Contact = require('../models').contacts
 
 
 
@@ -87,12 +89,16 @@ exports.ValidateDeposits = async (req, res) => {
         if (!findAdmin || !findAdmin.role === 'admin') return res.json({ status: 404, msg: 'Unauthorized access to this route' })
         const { id, amount } = req.body
         if (!id || !amount) return res.json({ status: 400, msg: 'Incomplete request for approval' })
+
         const findPendingDeposit = await Deposit.findOne({ where: { id } })
         if (!findPendingDeposit) return res.json({ status: 200, msg: 'deposit id not found' })
+
         if (findPendingDeposit.status === 'complete') return res.json({ status: 404, msg: 'deposit already validated' })
         const findUser = await User.findOne({ where: { id: findPendingDeposit.userid } })
+
         if (!findUser) return res.json({ status: 404, msg: 'Unauthorized access to this route' })
         findPendingDeposit.status = 'complete'
+
         findUser.balance = parseFloat(findUser.balance) + parseFloat(amount);
         await findPendingDeposit.save()
         await findUser.save()
@@ -111,6 +117,44 @@ exports.ValidateDeposits = async (req, res) => {
         return res.json({ status: 500, msg: error.message })
     }
 }
+exports.DeclineDeposits = async (req, res) => {
+    try {
+        const findAdmin = await User.findOne({ where: { id: req.user } });
+        if (!findAdmin || findAdmin.role !== 'admin') return res.json({ status: 404, msg: 'Unauthorized access to this route' });
+
+        const { id } = req.body;
+        if (!id) return res.json({ status: 400, msg: 'Incomplete request for approval' });
+
+        const findPendingDeposit = await Deposit.findOne({ where: { id } });
+        if (!findPendingDeposit) return res.json({ status: 404, msg: 'Deposit ID not found' });
+
+        if (findPendingDeposit.status === 'complete') return res.json({ status: 404, msg: 'Deposit already declined' });
+
+        const findUser = await User.findOne({ where: { id: findPendingDeposit.userid } });
+        if (!findUser) return res.json({ status: 404, msg: 'Unauthorized access to this route' });
+
+        findPendingDeposit.status = 'failed';
+
+        const ID = otpgenerator.generate(20, { specialChars: false, lowerCaseAlphabets: false });
+        const trans = await Transhistory.create({
+            type: 'Deposit',
+            message: `Sorry, your deposit of ${findUser.currency}${findPendingDeposit.amount} failed.`,
+            status: 'failed',
+            amount: findPendingDeposit.amount,
+            date: moment().format('DD-MM-YYYY hh:mm A'),
+            userid: findPendingDeposit.userid,
+            transaction_id: ID
+        });
+
+        await findPendingDeposit.save();
+        await findUser.save();
+
+        return res.json({ status: 200, msg: 'Deposit declined', data: trans });
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message });
+    }
+};
+
 exports.InitiateDeposits = async (req, res) => {
     try {
         const findAdmin = await User.findOne({ where: { id: req.user } })
@@ -164,7 +208,24 @@ exports.InitiateWithdraw = async (req, res) => {
 }
 
 
-
+exports.getSettledDeposits = async (req, res) => {
+    try {
+        const trans = await Deposit.findAll({
+            where: { status: ['complete', 'failed'] },
+            include: [
+                {
+                    model: User, as: 'userdeposits',
+                    attributes: { exclude: Excludes }
+                },
+            ],
+            order: [['updatedAt', 'DESC']]
+        })
+        if (!trans) return res.json({ status: 404, msg: 'Deposits not found' })
+        return res.json({ status: 200, msg: 'fetched successfully', data: trans })
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message })
+    }
+}
 
 exports.getAdminProfile = async (req, res) => {
     try {
@@ -328,6 +389,20 @@ exports.unhideBank = async (req, res) => {
         return res.json({ status: 500, msg: error.message })
     }
 }
+exports.removeAdminBank = async (req, res) => {
+    try {
+        const { id } = req.body
+        if (!id) return res.json({ status: 404, msg: 'Incomplete request' })
+        const findAdmin = await User.findOne({ where: { id: req.user } })
+        if (!findAdmin || !findAdmin.role === 'admin') return res.json({ status: 404, msg: 'Unauthorized access to this route' })
+        const findBank = await adminBank.findOne({ where: { id } })
+        if (!findBank) return res.json({ status: 404, msg: 'bank not found' })
+        await findBank.destroy()
+        return res.json({ status: 200, msg: 'Bank account deleted successfully' })
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message })
+    }
+}
 
 exports.getAdminBanks = async (req, res) => {
     try {
@@ -356,7 +431,7 @@ exports.createVerification = async (req, res) => {
             return res.json({ status: 404, msg: 'User not found' });
         }
         // return console.log(findUser, findTransfer)
-        const createVerify = await Verification.create({ amount, message, userid: findUser.id,transferid:id });
+        const createVerify = await Verification.create({ amount, message, userid: findUser.id, transferid: id });
         return res.json({ status: 200, msg: 'Verification created successfully', data: createVerify });
     } catch (error) {
         return res.json({ status: 500, msg: error.message });
@@ -401,20 +476,37 @@ exports.updateVerification = async (req, res) => {
     }
 };
 
-exports.getAllTransfers = async (req,res) =>{
+exports.getAllTransfers = async (req, res) => {
     try {
         const transfer = await Transfer.findAll({
-            include:[
-                {model: Verification, as :'verifications'}
+            include: [
+                { model: Verification, as: 'verifications' }
             ]
         })
-        if(!transfer) return res.json({status:404, msg:"Transfer not found"})
-            return res.json({status:200, msg:'success', data:transfer})
+        if (!transfer) return res.json({ status: 404, msg: "Transfer not found" })
+        return res.json({ status: 200, msg: 'success', data: transfer })
     } catch (error) {
         return res.json({ status: 500, msg: error.message });
     }
 }
 
 
-
+exports.getAllEmailSubs = async (req,res) =>{
+    try {
+        const subs = await NewsLetter.findAll()
+        if(!subs) return res.json({status:404, msg:'Email subs not found'})
+            return res.json({status :200, msg:"success", data:subs})
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message });
+    }
+}
+exports.getAllContacts = async (req,res) =>{
+    try {
+        const subs = await Contact.findAll()
+        if(!subs) return res.json({status:404, msg:'contacts not found'})
+            return res.json({status :200, msg:"success", data:subs})
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message });
+    }
+}
 

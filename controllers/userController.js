@@ -18,6 +18,8 @@ const KYC = require('../models')
 const Transfer = require('../models').transfers
 const Verification = require('../models').verifications
 const adminBank = require('../models').adminbanks
+const Contact = require('../models').contacts
+const NewsLetter = require('../models').newsletters
 
 
 
@@ -66,7 +68,7 @@ exports.SignupUserAccount = async (req, res) => {
       refid: phone,
       account_number: Otp,
       status: 'online',
-      curency: Currency,
+      currency: Currency,
       lastlogin: moment().format('DD-MM-YYYY hh:mmA')
     })
     return res.json({ status: 200, msg: ' Acount created successfully' })
@@ -333,8 +335,8 @@ exports.GetAllSavings = async (req, res) => {
 //deposit
 exports.Deposit = async (req, res) => {
   try {
-    const { firstname } = req.body;
-    if (!firstname) return res.json({ status: 404, msg: 'Fullname is required' });
+    const { firstname, amount } = req.body;
+    if (!firstname || !amount) return res.json({ status: 404, msg: 'Incomplete request' });
     if (!req.files) return res.json({ status: 404, msg: 'Proof of payment is required' });
 
     const findAcc = await User.findOne({ where: { id: req.user } });
@@ -356,13 +358,28 @@ exports.Deposit = async (req, res) => {
     const nextFileNumber = files.length + 1;
     imageName = `${slug(firstname)}-deposit-${nextFileNumber}.jpg`;
 
+    const idRef = otpgenerator.generate(20, { specialChars: false, lowerCaseAlphabets: false })
     await Deposit.create({
       image: imageName,
+      amount: amount,
       userid: findAcc.id // Ensure you are storing the user ID correctly
     });
 
     await image.mv(path.join(filepath, imageName));
-
+    await TransHistory.create({
+      type: 'Deposit',
+      amount: amount,
+      status: 'pending',
+      date: moment().format('DD-MM-YYYY hh:mmA'),
+      message: `You have initiated a deposit sum of ${findAcc.currency}${amount}, kindly wait for completion.  `,
+      transaction_id: idRef,
+      userid: findAcc.id
+    })
+    await Notify.create({
+      type: 'Transfer',
+      message: `You have successfully initiated a deposit of ${findAcc.currency}${amount}. pending approval.`,
+      user: findAcc.id
+    })
     return res.json({ status: 200, msg: 'Proof of payment upload success' });
   } catch (error) {
     return res.json({ status: 500, msg: error.message });
@@ -515,6 +532,20 @@ exports.DeleteGoal = async (req, res) => {
 }
 
 
+exports.getUserSavings = async (req, res) => {
+  try {
+    const findAcc = await User.findOne({ where: { id: req.user } })
+    if (!findAcc) return res.json({ status: 404, msg: 'Account not found' })
+    const findSavings = await Savings.findAll({
+      where: { user: findAcc.id }
+    });
+    if (!findSavings) return res.json({ status: 404, mag: "Savings not found" })
+    return res.json({ status: 200, msg: 'savings fetched successfully', data: findSavings })
+  } catch (error) {
+
+  }
+}
+
 //user loans and cards
 exports.createCards = async (req, res) => {
   try {
@@ -591,7 +622,7 @@ exports.getTransHistory = async (req, res) => {
     if (!findAcc) return res.hson({ status: 404, msg: 'Account not found' })
     const findHistory = await TransHistory.findAll({
       where: { userid: findAcc.id },
-      order: [['date', 'ASC']]
+      order: [['date', 'DESC']]
     })
     if (!findHistory) return res.json({ status: 404, msg: 'Transaction history not found' })
     return res.json({ status: 200, msg: 'Transaction history fetched successfully', data: findHistory })
@@ -748,11 +779,29 @@ exports.CreateTransfer = async (req, res) => {
     if (!acc_name || !acc_no || !bank_name || !amount) return res.json({ status: 404, msg: "Incomplete request" })
     const findUser = await User.findOne({ where: { id: req.user } })
     if (!findUser) return res.json({ status: 404, msg: 'User not found' })
-    findPendingTransfer = await Transfer.findOne({ where: { status: 'pending' } })
+    findPendingTransfer = await Transfer.findOne({ where: { userid: findUser.id, status: 'pending' } })
     if (findPendingTransfer) return res.json({ status: 404, msg: 'Sorry you have a pending transaction, wait for completion before proceeding with new one' })
+    if (amount > findUser.balance) return res.json({ status: 404, msg: "Insufficient funds" })
+    findUser.balance = parseFloat(findUser.balance) - parseFloat(amount)
     const transfer = await Transfer.create({
       acc_name, acc_no, bank_name, route, amount, userid: findUser.id
     })
+    const idRef = otpgenerator.generate(20, { specialChars: false, lowerCaseAlphabets: false })
+    await TransHistory.create({
+      type: 'Withdraw',
+      amount: amount,
+      status: 'success',
+      date: moment().format('DD-MM-YYYY hh:mmA'),
+      message: `You have initiated a withdrawal sum of ${findUser.currency}${amount}  to an external bank account, kindly wait for completion.  `,
+      transaction_id: idRef,
+      userid: findUser.id
+    })
+    await Notify.create({
+      type: 'Transfer',
+      message: `You have successfully initiated a transfer of ${findUser.currency}${amount}. pending approval.`,
+      user: findUser.id
+    })
+    await findUser.save()
     return res.json({ status: 200, msg: "Transfer created successfully", data: transfer })
   } catch (error) {
     return res.json({ status: 500, msg: error.message })
@@ -838,12 +887,36 @@ exports.getAllTransfers = async (req, res) => {
     const findAcc = await User.findOne({ where: { id: req.user } });
     if (!findAcc) return res.json({ status: 404, msg: "Account not found" });
     const transfer = await Transfer.findAll({
+      where: { userid: findAcc.id },
       include: [
         { model: Verification, as: 'verifications' }
       ]
     })
     if (!transfer) return res.json({ status: 404, msg: "Transfer not found" })
     return res.json({ status: 200, msg: 'success', data: transfer })
+  } catch (error) {
+    return res.json({ status: 500, msg: error.message });
+  }
+}
+
+exports.contactUs = async (req, res) => {
+  try {
+    const { name, email, message, subject } = req.body
+    if (!message) return res.json({ status: 404, msg: 'Message is missing' })
+    await Contact.create({ name, email, message, subject })
+    return res.json({ status: 200, msg: "Message sent" })
+  } catch (error) {
+    return res.json({ status: 500, msg: error.message });
+  }
+}
+exports.NewsLetterSubscription = async (req, res) => {
+  try {
+    const { email } = req.body
+    if (!email) return res.json({ status: 404, msg: 'Email is missing' })
+    const checkmail = await NewsLetter.findOne({ where: { email } })
+    if (checkmail) return res.json({ status: 404, msg: "Email already subscribed" })
+    await NewsLetter.create({ email })
+    return res.json({ status: 200, msg: "Subscribes successfully" })
   } catch (error) {
     return res.json({ status: 500, msg: error.message });
   }

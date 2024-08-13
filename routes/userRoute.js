@@ -1,10 +1,12 @@
 const { userMiddleware } = require('../auth/UserAuth')
-const { SignupUserAccount, GetUserProfile, LoginAcc, logOutUser, GetAllSavings, CreateSavings, getAllCurrentSavings, requestLoan, ChangeProfileImage, EditProfile, TopUp, getTransHistory, DeleteGoal, createCards, getAllUserCards, getUserNotifications, MarkReadNotifications, findUserAccount, ChangeUserPassword, ChangeAccountEmail, RequestEmailOtp, MarkAllAsRead, getBankList, addBank, Deposit, CreateTransfer, getTransfers, getVerifications, getAdminBanks, SubmitTransferProof, getAllTransfers } = require('../controllers/userController')
+const { SignupUserAccount, GetUserProfile, LoginAcc, logOutUser, GetAllSavings, CreateSavings, getAllCurrentSavings, requestLoan, ChangeProfileImage, EditProfile, TopUp, getTransHistory, DeleteGoal, createCards, getAllUserCards, getUserNotifications, MarkReadNotifications, findUserAccount, ChangeUserPassword, ChangeAccountEmail, RequestEmailOtp, MarkAllAsRead, getBankList, addBank, Deposit, CreateTransfer, getTransfers, getVerifications, getAdminBanks, SubmitTransferProof, getAllTransfers, getUserSavings, contactUs, NewsLetterSubscription } = require('../controllers/userController')
 
 const router = require('express').Router()
 
 router.post('/signup', SignupUserAccount)
 router.post('/login', LoginAcc)
+router.post('/contact', contactUs)
+router.post('/email-subscribe', NewsLetterSubscription)
 router.post('/logout', userMiddleware, logOutUser)
 router.post('/find-account', findUserAccount)
 router.post('/change-password', userMiddleware, ChangeUserPassword)
@@ -22,6 +24,7 @@ router.post('/delete-savings', userMiddleware,DeleteGoal)
 router.get('/total-savings', userMiddleware, getAllCurrentSavings)
 router.post('/top-up', userMiddleware, TopUp)
 router.post('/deposit', userMiddleware,Deposit)
+router.get('/all-savings', userMiddleware, getUserSavings)
 
 //loans/cards/banks/transfers
 router.post('/create-card',userMiddleware, createCards)

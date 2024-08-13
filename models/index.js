@@ -30,6 +30,8 @@ const sequelize = new Sequelize(process.env.DB_NAME || 'banking', process.env.DB
   db.adminbanks = require(`./adminBank`)(sequelize,DataTypes)
   db.verifications = require(`./verificationsModel`)(sequelize,DataTypes)
   db.transfers = require(`./transferModel`)(sequelize,DataTypes)
+  db.contacts = require(`./contactModel`)(sequelize,DataTypes)
+  db.newsletters = require(`./newsLetter`)(sequelize,DataTypes)
 
   //One to Many relationships
   db.users.hasMany(db.notifications,{foreignKey:'user', as:'usernotify'})
