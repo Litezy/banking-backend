@@ -399,20 +399,6 @@ exports.CreateSavings = async (req, res) => {
       findAcc.balance = findAcc.balance - current;
     }
 
-    let currency;
-    try {
-      const response = await axios.get(`https://restcountries.com/v3.1/name/${findAcc?.country}`);
-      if (response.data && response.data.length > 0) {
-        const countryData = response.data[0];
-        const currencySymbol = Object.values(countryData.currencies)[0].symbol;
-        currency = currencySymbol;
-      } else {
-        console.error('Unexpected response format:', response);
-      }
-    } catch (apiError) {
-      console.error('Error fetching currency:', apiError);
-      return res.status(500).json({ status: 500, msg: 'Failed to fetch currency information' });
-    }
 
     const save = await Savings.create({
       goal,
@@ -432,7 +418,7 @@ exports.CreateSavings = async (req, res) => {
         amount: current,
         status: 'success',
         date: moment().format('DD-MM-YYYY hh:mmA'),
-        message: `You have successfully created a savings goal with a target of ${currency}${goal}. ${current ? `With an initial saving of ${currency}${current}.` : ''}. Stay committed and watch your savings grow! Congratulations.`,
+        message: `You have successfully created a savings goal with a target of ${findAcc.currency}${goal}. ${current ? `With an initial saving of ${currency}${current}.` : ''}. Stay committed and watch your savings grow! Congratulations.`,
         transaction_id: idRef,
         userid: findAcc.id,
       });
