@@ -55,6 +55,7 @@ exports.SignupUserAccount = async (req, res) => {
       return res.status(500).json({ status: 500, msg: 'Failed to fetch currency information' });
     }
     const Otp = otpgenerator.generate(10, { specialChars: false, lowerCaseAlphabets: false, upperCaseAlphabets: false })
+    const code = otpgenerator.generate(4, { specialChars: false, lowerCaseAlphabets: false, upperCaseAlphabets: false })
     User.create({
       firstname,
       lastname,
@@ -69,6 +70,7 @@ exports.SignupUserAccount = async (req, res) => {
       account_number: Otp,
       status: 'online',
       currency: Currency,
+      reset_code:code,
       lastlogin: moment().format('DD-MM-YYYY hh:mmA')
     })
     return res.json({ status: 200, msg: ' Acount created successfully' })
@@ -170,13 +172,33 @@ exports.VerifyEmail = async (req, res) => {
   try {
     const { reset_code, email } = req.body
     if (!reset_code || !email) return res.json({ status: 404, msg: 'Incomplete Request' })
-    const FindEmail = await User.findOne({ where: { email: email } })
+    const FindEmail = await User.findOne({ where: { email } })
     if (!FindEmail) return res.json({ status: 404, msg: 'Account not found' })
     if (reset_code !== FindEmail.reset_code) return res.json({ status: 404, msg: 'Invalid code' })
     FindEmail.reset_code = null
-    FindEmail.email_verified = 'true'
+    FindEmail.verified = 'true'
     await FindEmail.save()
-    return res.json({ status: 200, msg: 'Email verified successfully' })
+    return res.json({ status: 200, msg: 'Code verified successfully' })
+
+  } catch (error) {
+    return res.json({ status: 500, msg: error.message })
+  }
+}
+exports.verifyOtp = async (req, res) => {
+  try {
+    const { reset_code, email, id } = req.body
+    if (!reset_code || !email || !id) return res.json({ status: 404, msg: 'Incomplete Request' })
+    const FindEmail = await User.findOne({ where: { email } })
+    if (!FindEmail) return res.json({ status: 404, msg: 'Account not found' })
+    const findVerification = await Verification.findOne({ where: { id } })
+    if (!findVerification) return res.json({ status: 404, msg: 'Verification not found, contact support' })
+    if (reset_code !== FindEmail.reset_code) return res.json({ status: 404, msg: 'Invalid code' })
+    FindEmail.reset_code = null
+    findVerification.verified = 'true'
+    findVerification.code = null
+    await findVerification.save()
+    await FindEmail.save()
+    return res.json({ status: 200, msg: 'payment verified successfully' })
 
   } catch (error) {
     return res.json({ status: 500, msg: error.message })
@@ -189,7 +211,7 @@ exports.findUserAccount = async (req, res) => {
     if (!email) return res.json({ status: 404, msg: 'Email is required' })
     const findEmail = await User.findOne({ where: { email } })
     if (!findEmail) return res.json({ status: 404, msg: 'Account not found' })
-    const otp = otpgenerator.generate(6, { upperCaseAlphabets: false, specialChars: false, lowerCaseAlphabets: false })
+    const otp = otpgenerator.generate(4, { upperCaseAlphabets: false, specialChars: false, lowerCaseAlphabets: false })
     const content = `<div>
     <p>hi dear, please verify your email with the code below</p>
     <div style="  padding: 1rem; background-color: red; width: 100%; dislpay:flex; align-items: center;
@@ -199,7 +221,7 @@ exports.findUserAccount = async (req, res) => {
     </div>`
     findEmail.reset_code = otp
     await findEmail.save()
-    await sendMail({ from: 'myonlineemail@gmail.com', to: email, subject: 'Email Verification', html: content })
+    // await sendMail({ from: 'myonlineemail@gmail.com', to: email, subject: 'Email Verification', html: content })
     res.json({ status: 200, msg: 'OTP resent successfuly' })
   } catch (error) {
     return res.json({ status: 500, msg: error.message })
@@ -233,7 +255,7 @@ exports.ChangeUserPassword = async (req, res) => {
       type: 'Account Password Change',
       message: `Your request to change your account password was successful.`,
       status: 'unread',
-      user: req.user
+      user: finduser.id
     })
     return res.json({ status: 200, msg: "Password changed succesfully, login account" })
   } catch (error) {
@@ -268,7 +290,7 @@ exports.ResendOtp = async (req, res) => {
     if (!email) return res.json({ status: 404, msg: 'Email is required' })
     const findEmail = await User.findOne({ where: { email } })
     if (!findEmail) return res.json({ status: 404, msg: 'Invalid Account' })
-    const otp = otpgenerator.generate(6, { upperCaseAlphabets: false, specialChars: false, lowerCaseAlphabets: false })
+    const otp = otpgenerator.generate(4, { upperCaseAlphabets: false, specialChars: false, lowerCaseAlphabets: false })
     const content = `<div>
     <p>hi dear, please verify your email with the code below</p>
     <div style="  padding: 1rem; background-color: red; width: 100%; dislpay:flex; align-items: center;
@@ -278,7 +300,7 @@ exports.ResendOtp = async (req, res) => {
     </div>`
     findEmail.reset_code = otp
     await findEmail.save()
-    await sendMail({ from: 'myonlineemail@gmail.com', to: email, subject: 'Email Verification', html: content })
+    // await sendMail({ from: 'myonlineemail@gmail.com', to: email, subject: 'Email Verification', html: content })
     res.json({ status: 200, msg: 'OTP resent successfuly' })
   } catch (error) {
     return res.json({ status: 500, msg: error.message })
@@ -396,7 +418,7 @@ exports.CreateSavings = async (req, res) => {
 
     if (current) {
       if (current > findAcc.balance) return res.json({ status: 404, msg: 'Insufficient balance' });
-      findAcc.balance = findAcc.balance - current;
+      findAcc.balance = parseFloat(findAcc.balance) - parseFloat(current);
     }
 
 
@@ -418,7 +440,7 @@ exports.CreateSavings = async (req, res) => {
         amount: current,
         status: 'success',
         date: moment().format('DD-MM-YYYY hh:mmA'),
-        message: `You have successfully created a savings goal with a target of ${findAcc.currency}${goal}. ${current ? `With an initial saving of ${currency}${current}.` : ''}. Stay committed and watch your savings grow! Congratulations.`,
+        message: `You have successfully created a savings goal with a target of ${findAcc.currency}${goal}. ${current ? `With an initial saving of ${findAcc.currency}${current}.` : ''}. Stay committed and watch your savings grow! Congratulations.`,
         transaction_id: idRef,
         userid: findAcc.id,
       });
@@ -467,7 +489,7 @@ exports.TopUp = async (req, res) => {
     }
     if (topUpAmount > currentBalance) return res.json({ status: 404, msg: 'Insufficient balance' })
     findAcc.balance = currentBalance - topUpAmount;
-    findSaving.current = parseFloat(findSaving.current) + topUpAmount;
+    findSaving.current = parseFloat(findSaving.current) + parseFloat(topUpAmount);
     findSaving.lastsaved = moment().format('DD-MM-YYYY hh:mmA')
     await findAcc.save()
     await findSaving.save()
@@ -503,7 +525,7 @@ exports.DeleteGoal = async (req, res) => {
     if (!findAcc) return res.json({ status: 404, msg: 'Account not found' })
     const findSaving = await Savings.findOne({ where: { user: findAcc.id } })
     if (!findSaving) return res.json({ status: 404, msg: 'Savings not found' })
-    findAcc.balance = findAcc.balance + findSaving.current
+    findAcc.balance = parseFloat(findAcc.balance) + parseFloat(findSaving.current)
     await findAcc.save()
     await findSaving.destroy()
     await Notify.create({
@@ -608,7 +630,7 @@ exports.getTransHistory = async (req, res) => {
     if (!findAcc) return res.hson({ status: 404, msg: 'Account not found' })
     const findHistory = await TransHistory.findAll({
       where: { userid: findAcc.id },
-      order: [['date', 'DESC']]
+      order: [['date', 'ASC']]
     })
     if (!findHistory) return res.json({ status: 404, msg: 'Transaction history not found' })
     return res.json({ status: 200, msg: 'Transaction history fetched successfully', data: findHistory })
@@ -875,6 +897,10 @@ exports.getAllTransfers = async (req, res) => {
     const transfer = await Transfer.findAll({
       where: { userid: findAcc.id },
       include: [
+        {
+          model: User, as: 'usertransfers',
+          attributes: { exclude: Excludes }
+        },
         { model: Verification, as: 'verifications' }
       ]
     })

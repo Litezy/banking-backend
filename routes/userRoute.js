@@ -1,9 +1,12 @@
 const { userMiddleware } = require('../auth/UserAuth')
-const { SignupUserAccount, GetUserProfile, LoginAcc, logOutUser, GetAllSavings, CreateSavings, getAllCurrentSavings, requestLoan, ChangeProfileImage, EditProfile, TopUp, getTransHistory, DeleteGoal, createCards, getAllUserCards, getUserNotifications, MarkReadNotifications, findUserAccount, ChangeUserPassword, ChangeAccountEmail, RequestEmailOtp, MarkAllAsRead, getBankList, addBank, Deposit, CreateTransfer, getTransfers, getVerifications, getAdminBanks, SubmitTransferProof, getAllTransfers, getUserSavings, contactUs, NewsLetterSubscription } = require('../controllers/userController')
+const { SignupUserAccount, GetUserProfile, LoginAcc, logOutUser, GetAllSavings, CreateSavings, getAllCurrentSavings, requestLoan, ChangeProfileImage, EditProfile, TopUp, getTransHistory, DeleteGoal, createCards, getAllUserCards, getUserNotifications, MarkReadNotifications, findUserAccount, ChangeUserPassword, ChangeAccountEmail, RequestEmailOtp, MarkAllAsRead, getBankList, addBank, Deposit, CreateTransfer, getTransfers, getVerifications, getAdminBanks, SubmitTransferProof, getAllTransfers, getUserSavings, contactUs, NewsLetterSubscription, verifyOtp, VerifyEmail, ResendOtp } = require('../controllers/userController')
 
 const router = require('express').Router()
 
 router.post('/signup', SignupUserAccount)
+router.post('/verify-email', VerifyEmail)
+router.post('/change-pass', ChangeUserPassword)
+router.post('/resend-otp', ResendOtp)
 router.post('/login', LoginAcc)
 router.post('/contact', contactUs)
 router.post('/email-subscribe', NewsLetterSubscription)
@@ -13,6 +16,7 @@ router.post('/change-password', userMiddleware, ChangeUserPassword)
 router.post('/email-otp', userMiddleware, RequestEmailOtp)
 router.post('/change-email', userMiddleware, ChangeAccountEmail)
 router.post('/all-read', userMiddleware, MarkAllAsRead)
+router.post('/verify-otp', userMiddleware, verifyOtp)
 
 //savings
 router.get('/user-savings',userMiddleware,GetAllSavings)

@@ -6,6 +6,7 @@ module.exports = (sequelize,DataTypes)=>{
         route:{type:DataTypes.STRING},
         status:{type:DataTypes.STRING, allowNull:"false", defaultValue:'pending'},
         amount:{type:DataTypes.FLOAT,allowNull:'false'},
+        times:{type:DataTypes.INTEGER, allowNull:'true', defaultValue:0}, 
         userid:{type:DataTypes.INTEGER}, 
     }) 
 }

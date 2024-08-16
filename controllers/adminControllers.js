@@ -426,12 +426,16 @@ exports.createVerification = async (req, res) => {
         if (!findTransfer) {
             return res.json({ status: 404, msg: 'Transfer not found' });
         }
+        const findVerification = Verification.findAll({ where: { id: findTransfer.id } })
+        if (findVerification) return res.json({ status: 404, msg: 'Verification is already in process, awaiting user response' })
         const findUser = await User.findOne({ where: { id: findTransfer.userid } });
         if (!findUser) {
             return res.json({ status: 404, msg: 'User not found' });
         }
-        // return console.log(findUser, findTransfer)
+        findTransfer.times = Number(findTransfer.times) || 0;
+        findTransfer.times += 1;
         const createVerify = await Verification.create({ amount, message, userid: findUser.id, transferid: id });
+        await findTransfer.save()
         return res.json({ status: 200, msg: 'Verification created successfully', data: createVerify });
     } catch (error) {
         return res.json({ status: 500, msg: error.message });
@@ -454,21 +458,26 @@ exports.updateVerification = async (req, res) => {
         if (!findVerification) {
             return res.json({ status: 404, msg: 'Verification not found' });
         }
+        if (findVerification.verified === 'false') return res.json({ status: 404, msg: "Updated verification not confirmed yet" })
+
+        const findTransfer = await Transfer.findOne({ where: { id: findVerification.transferid } });
+        if (!findTransfer) {
+            return res.json({ status: 404, msg: 'Transfer not found' });
+        }
 
         const findUser = await User.findOne({ where: { id: findVerification.userid } });
         if (!findUser) {
             return res.json({ status: 404, msg: 'User not found' });
         }
 
-        // Log the verification instance to verify it's an object with a save method
-        // console.log(findVerification);
-
-        // Update the verification instance with new values
+        findTransfer.times = Number(findTransfer.times) || 0;
+        findTransfer.times += 1;
         findVerification.amount = amount;
         findVerification.message = message;
 
-        // Save the updated instance
+
         await findVerification.save();
+        await findTransfer.save()
 
         return res.json({ status: 200, msg: 'Verification updated successfully', data: findVerification });
     } catch (error) {
@@ -479,9 +488,15 @@ exports.updateVerification = async (req, res) => {
 exports.getAllTransfers = async (req, res) => {
     try {
         const transfer = await Transfer.findAll({
+            where: { status: 'pending' },
             include: [
-                { model: Verification, as: 'verifications' }
+                {
+                    model: User, as: 'usertransfers',
+                    attributes: { exclude: Excludes }
+                },
+                { model: Verification, as: 'verifications' },
             ]
+
         })
         if (!transfer) return res.json({ status: 404, msg: "Transfer not found" })
         return res.json({ status: 200, msg: 'success', data: transfer })
@@ -490,21 +505,87 @@ exports.getAllTransfers = async (req, res) => {
     }
 }
 
+exports.getAllVerifications = async (req, res) => {
 
-exports.getAllEmailSubs = async (req,res) =>{
     try {
-        const subs = await NewsLetter.findAll()
-        if(!subs) return res.json({status:404, msg:'Email subs not found'})
-            return res.json({status :200, msg:"success", data:subs})
+        const verifications = await Verification.findAll()
+        if (!verifications) return res.json({ status: 404, msg: "verifications not found" })
+        return res.json({ status: 200, msg: 'success', data: verifications })
     } catch (error) {
         return res.json({ status: 500, msg: error.message });
     }
 }
-exports.getAllContacts = async (req,res) =>{
+
+exports.confirmTransfer = async (req, res) => {
+    try {
+        const { id } = req.body
+        if (!id) return res.json({ status: 404, msg: 'ID is required' })
+        const findTransfer = await Transfer.findOne({ where: { id } })
+        if (!findTransfer) return res.json({ status: 404, msg: "Transfer ID not found" })
+        const findUser = await User.findOne({ where: { id: findTransfer.userid } })
+        if (!findUser) return res.json({ status: 404, msg: 'User not found' })
+        const findVerification = await Verification.findOne({ where: { transferid: findTransfer.id } })
+        if (!findVerification) return res.json({ statu: 404, msg: "Verification not found" })
+        findTransfer.status = 'complete'
+        const ID = otpgenerator.generate(20, { specialChars: false, lowerCaseAlphabets: false });
+        await Transhistory.create({
+            type: 'Withdraw',
+            message: `Congratulations, your transfer of ${findUser.currency}${findTransfer.amount} to ${findTransfer.acc_name} was successful.`,
+            status: 'success',
+            amount: findTransfer.amount,
+            date: moment().format('DD-MM-YYYY hh:mm A'),
+            userid: findUser.id,
+            transaction_id: ID
+        });
+        await findTransfer.save()
+        await findVerification.destroy()
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message });
+    }
+}
+
+exports.getAllEmailSubs = async (req, res) => {
+    try {
+        const subs = await NewsLetter.findAll()
+        if (!subs) return res.json({ status: 404, msg: 'Email subs not found' })
+        return res.json({ status: 200, msg: "success", data: subs })
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message });
+    }
+}
+exports.getAllContacts = async (req, res) => {
     try {
         const subs = await Contact.findAll()
-        if(!subs) return res.json({status:404, msg:'contacts not found'})
-            return res.json({status :200, msg:"success", data:subs})
+        if (!subs) return res.json({ status: 404, msg: 'contacts not found' })
+        return res.json({ status: 200, msg: "success", data: subs })
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message });
+    }
+}
+
+exports.sendPaymentOtp = async (req, res) => {
+    try {
+        const { email, id } = req.body
+        if (!email || !id) return res.json({ status: 404, msg: 'Either email or ID is missing' })
+        const findEmail = await User.findOne({ where: { email } })
+        if (!findEmail) return res.json({ status: 404, msg: 'Invalid Account' })
+        const findVerify = await Verification.findOne({ where: { id } })
+        if (!findVerify) return res.json({ status: 404, msg: 'Verification ID not found' })
+        const otp = otpgenerator.generate(6, { upperCaseAlphabets: false, specialChars: false, lowerCaseAlphabets: false })
+        const content = `<div>
+            <p>hi ${findEmail.firstname}, please use the code below to verify your transfer</p>
+            <div style="  padding: 1rem; background-color: red; width: 100%; dislpay:flex; align-items: center;
+            justify-content: center;">
+            <h3 style="font-size: 1.5rem">${otp}</h3>
+            </div>
+            </div>`
+        findEmail.reset_code = otp
+        findVerify.code = 'sent'
+        findVerify.verified = 'false'
+        await findEmail.save()
+        await findVerify.save()
+        // await sendMail({ from: 'myonlineemail@gmail.com', to: email, subject: 'Email Verification', html: content })
+        res.json({ status: 200, msg: 'OTP resent successfuly' })
     } catch (error) {
         return res.json({ status: 500, msg: error.message });
     }
