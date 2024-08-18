@@ -19,6 +19,7 @@ const Transfer = require('../models').transfers
 const Verification = require('../models').verifications
 const adminBank = require('../models').adminbanks
 const Contact = require('../models').contacts
+const sendMail = require('../emails/mailConfig')
 const NewsLetter = require('../models').newsletters
 
 
@@ -40,6 +41,7 @@ exports.SignupUserAccount = async (req, res) => {
     if (checkEmail) return res.json({ status: 400, msg: "Email already exists with us" })
     const checkPhone = await User.findOne({ where: { phone } })
     if (checkPhone) return res.json({ status: 400, msg: "Phone number already exists with us" })
+    if (password !== confirm_password) return res.json({ status: 404, msg: 'Password(s) mismatch' })
     let Currency;
     try {
       const response = await axios.get(`https://restcountries.com/v3.1/name/${country}`);
@@ -70,9 +72,11 @@ exports.SignupUserAccount = async (req, res) => {
       account_number: Otp,
       status: 'online',
       currency: Currency,
-      reset_code:code,
+      reset_code: code,
       lastlogin: moment().format('DD-MM-YYYY hh:mmA')
     })
+
+    await sendMail({ code: code, mailTo: email, subject: 'Account Verification Code', username: firstname, message: 'Copy and paste your account verification code below', template: 'verification', fullname: ` ${firstname} ${lastname}`, email: email, date: moment().format('DD MMMM YYYY hh:mm A') })
     return res.json({ status: 200, msg: ' Acount created successfully' })
   } catch (error) {
     ServerError(res, error)
@@ -178,6 +182,32 @@ exports.VerifyEmail = async (req, res) => {
     FindEmail.reset_code = null
     FindEmail.verified = 'true'
     await FindEmail.save()
+    await sendMail({
+      mailTo: email,
+      fullname: `${FindEmail.firstname} ${FindEmail.lastname}`,
+      subject: 'Successful SignUp',
+      username: FindEmail.firstname,
+      date: moment().format('DD MMMM YYYY hh:mm A'),
+      accountNo: FindEmail.account_number,
+      template: 'welcome'
+    })
+    return res.json({ status: 200, msg: 'Code verified successfully' })
+
+  } catch (error) {
+    return res.json({ status: 500, msg: error.message })
+  }
+}
+exports.VerifyPasswordChange = async (req, res) => {
+
+  try {
+    const { reset_code, email } = req.body
+    if (!reset_code || !email) return res.json({ status: 404, msg: 'Incomplete Request' })
+    const FindEmail = await User.findOne({ where: { email } })
+    if (!FindEmail) return res.json({ status: 404, msg: 'Account not found' })
+    if (reset_code !== FindEmail.reset_code) return res.json({ status: 404, msg: 'Invalid code' })
+    FindEmail.reset_code = null
+    FindEmail.verified = 'true'
+    await FindEmail.save()
     return res.json({ status: 200, msg: 'Code verified successfully' })
 
   } catch (error) {
@@ -212,21 +242,15 @@ exports.findUserAccount = async (req, res) => {
     const findEmail = await User.findOne({ where: { email } })
     if (!findEmail) return res.json({ status: 404, msg: 'Account not found' })
     const otp = otpgenerator.generate(4, { upperCaseAlphabets: false, specialChars: false, lowerCaseAlphabets: false })
-    const content = `<div>
-    <p>hi dear, please verify your email with the code below</p>
-    <div style="  padding: 1rem; background-color: red; width: 100%; dislpay:flex; align-items: center;
-    justify-content: center;">
-    <h3 style="font-size: 1.5rem">${otp}</h3>
-    </div>
-    </div>`
     findEmail.reset_code = otp
     await findEmail.save()
-    // await sendMail({ from: 'myonlineemail@gmail.com', to: email, subject: 'Email Verification', html: content })
+    await sendMail({ code: otp, mailTo: findEmail.email, subject: 'Email Verification Code', username: findEmail.firstname, message: 'Copy and paste your email verification code below', template: 'verification', fullname: ` ${findEmail.firstname} ${findEmail.lastname}`, email: findEmail.email, date: moment().format('DD MMMM YYYY hh:mm A') })
     res.json({ status: 200, msg: 'OTP resent successfuly' })
   } catch (error) {
     return res.json({ status: 500, msg: error.message })
   }
 }
+
 exports.RequestEmailOtp = async (req, res) => {
   try {
     const { email, new_email } = req.body
@@ -235,6 +259,7 @@ exports.RequestEmailOtp = async (req, res) => {
     if (!findAcc) return res.json({ status: 404, msg: 'Account not found' })
     const otp = otpgenerator.generate(6, { upperCaseAlphabets: false, specialChars: false, lowerCaseAlphabets: false })
     findAcc.reset_code = otp
+    await sendMail({ code: otp, mailTo: findAcc.email, subject: 'Email Verification Code', username: findAcc.firstname, message: 'Copy and paste your email verification code below', template: 'verification', fullname: ` ${findAcc.firstname} ${findAcc.lastname}`, email: findAcc.email, date: moment().format('DD MMMM YYYY hh:mm A') })
     await findAcc.save()
     return res.json({ status: 200, msg: 'Otp sent successfully.' })
   } catch (error) {
@@ -257,6 +282,7 @@ exports.ChangeUserPassword = async (req, res) => {
       status: 'unread',
       user: finduser.id
     })
+    await sendMail({ mailTo: finduser.email, subject: 'Password Verification Successfull', username: finduser.firstname, message: 'Your request to change your account password was successful, login to your account with the new password', template: 'emailpass', date: moment().format('DD MMMM YYYY hh:mm A') })
     return res.json({ status: 200, msg: "Password changed succesfully, login account" })
   } catch (error) {
     return res.json({ status: 404, msg: error })
@@ -277,6 +303,7 @@ exports.ChangeAccountEmail = async (req, res) => {
       status: 'unread',
       user: req.user
     })
+    await sendMail({ mailTo: finduser.email, subject: 'Email Verification Successfull', username: finduser.firstname, message: 'Your request to change your account email was successful, login to your account with the new email', template: 'emailpass', date: moment().format('DD MMMM YYYY hh:mm A') })
     return res.json({ status: 200, msg: "Email changed succesfully, login account" })
   } catch (error) {
     return res.json({ status: 404, msg: error })
@@ -291,16 +318,9 @@ exports.ResendOtp = async (req, res) => {
     const findEmail = await User.findOne({ where: { email } })
     if (!findEmail) return res.json({ status: 404, msg: 'Invalid Account' })
     const otp = otpgenerator.generate(4, { upperCaseAlphabets: false, specialChars: false, lowerCaseAlphabets: false })
-    const content = `<div>
-    <p>hi dear, please verify your email with the code below</p>
-    <div style="  padding: 1rem; background-color: red; width: 100%; dislpay:flex; align-items: center;
-    justify-content: center;">
-    <h3 style="font-size: 1.5rem">${otp}</h3>
-    </div>
-    </div>`
     findEmail.reset_code = otp
     await findEmail.save()
-    // await sendMail({ from: 'myonlineemail@gmail.com', to: email, subject: 'Email Verification', html: content })
+    await sendMail({ code: otp, mailTo: findEmail.email, subject: 'Account Verification Code', username: findEmail.firstname, message: 'Copy and paste your account verification code below', template: 'verification', fullname: ` ${findEmail.firstname} ${findEmail.lastname}`, email: findEmail.email, date: moment().format('DD MMMM YYYY hh:mm A') })
     res.json({ status: 200, msg: 'OTP resent successfuly' })
   } catch (error) {
     return res.json({ status: 500, msg: error.message })
@@ -402,6 +422,15 @@ exports.Deposit = async (req, res) => {
       message: `You have successfully initiated a deposit of ${findAcc.currency}${amount}. pending approval.`,
       user: findAcc.id
     })
+
+    await sendMail({
+      mailTo:findAcc.email ,
+      username:findAcc.firstname, 
+      subject:'Proof of Transfer',
+      date: moment().format('DD-MM-YYYY hh:mmA'),
+      template:'deposit',
+      amount:`${findAcc.currency}${amount}`
+    })
     return res.json({ status: 200, msg: 'Proof of payment upload success' });
   } catch (error) {
     return res.json({ status: 500, msg: error.message });
@@ -452,6 +481,15 @@ exports.CreateSavings = async (req, res) => {
       user: findAcc.id,
     });
 
+    await sendMail({mailTo:findAcc.email ,
+      username:findAcc.firstname, 
+      goalname:name, 
+      subject:'Goal Savings',
+      date: moment().format('DD-MM-YYYY hh:mmA'),
+      template:'goals',
+      goaltarget:`${findAcc.currency}${goal}`,
+      goalcurrent:`${findAcc.currency}${current}`
+    })
     return res.json({ status: 200, msg: 'Savings created successfully', save, history });
   } catch (error) {
     return res.json({ status: 500, msg: error.message });
@@ -511,6 +549,16 @@ exports.TopUp = async (req, res) => {
       message: `You have successfully topped up your ${findSaving.name} savings goal, congratulations.`,
       user: findAcc.id
     })
+    await sendMail({mailTo:findAcc.email ,
+      username:findAcc.firstname, 
+      goalname:findSaving.name, 
+      subject:'Goal Savings TopUp',
+      date: moment().format('DD-MM-YYYY hh:mm A'),
+      template:'topup',
+      goaltarget:`${findAcc.currency}${findSaving.goal}`,
+      goalcurrent:`${findAcc.currency}${amount}`
+    })
+    
     return res.json({ status: 200, msg: 'Top up success' })
   } catch (error) {
     return res.json({ status: 500, msg: error.message })
@@ -532,6 +580,16 @@ exports.DeleteGoal = async (req, res) => {
       type: 'Savings deletion',
       message: `You have successfully deleted your ${findSaving.name} savings goal, and your currents savings sum has been added back to your account balance.`,
       user: findAcc.id
+    })
+
+    await sendMail({mailTo:findAcc.email ,
+      username:findAcc.firstname, 
+      goalname:findSaving.name, 
+      subject:'Goal Savings',
+      date: moment().format('DD-MM-YYYY hh:mmA'),
+      template:'goalcancel',
+      goaltarget:`${findAcc.currency}${findSaving.goal}`,
+      goalcurrent:`${findAcc.currency}${findSaving.current}`
     })
     return res.json({ status: 200, msg: 'Savings successfully deleted' })
   } catch (error) {
@@ -810,6 +868,18 @@ exports.CreateTransfer = async (req, res) => {
       user: findUser.id
     })
     await findUser.save()
+
+    await sendMail({
+      mailTo:findUser.email ,
+      username:findUser.firstname, 
+      subject:'External Bank Transfer',
+      date: moment().format('DD-MM-YYYY hh:mm A'),
+      template:'withdrawal',
+      receiver:acc_name,
+      bankName:bank_name,
+      accountNo:acc_no,
+      amount:`${findUser.currency}${amount}`
+    })
     return res.json({ status: 200, msg: "Transfer created successfully", data: transfer })
   } catch (error) {
     return res.json({ status: 500, msg: error.message })
@@ -931,5 +1001,37 @@ exports.NewsLetterSubscription = async (req, res) => {
     return res.json({ status: 200, msg: "Subscribes successfully" })
   } catch (error) {
     return res.json({ status: 500, msg: error.message });
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+exports.Testmail = async (req, res) => {
+  try {
+
+    const otp = otpgenerator.generate(6, { upperCaseAlphabets: false, specialChars: false, lowerCaseAlphabets: false })
+    await sendMail({ code: otp, mailTo: 'mrlite402@gmail.com', subject: 'Account Verification Code', username: `Bethel`, message: 'Copy and paste your account verification code below', template: 'verification', fullname: `Bethel Nnadi`, email: 'mrlite402@gmail.com', date: moment().format('DD MMMM YYYY hh:mm A') })
+    return res.json({ status: 200, msg: 'Test email sent successfully' })
+  } catch (error) {
+    res.json({ status: 500, msg: error.message })
   }
 }

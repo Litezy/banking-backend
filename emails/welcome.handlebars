@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+<body style="margin: 0;background: whitesmoke;">
+
+
+    <div style=" font-family: Arial, Helvetica, sans-serif; padding-bottom: 1rem; padding-top: 1rem;">
+        <div
+            style="width: 90%; max-width: 32rem;margin: 0 auto;text-align: center; padding: 2rem 1rem; background: white; border-top: 5px solid #f35327;">
+            <h1 style="font-size: 1rem; text-transform: capitalize;">Hi {{fullname}},</h1>
+            <div style="font-weight: bold;text-align: center;">Welcome to
+                <span
+                    style="font-size: .8rem; color: rgb(20, 20, 165);  font-weight: light;">Greenford Bank.</span> 
+                We're thrilled to have you on board and are excited to help you take control of your finances, your gateway to the world of banking.</div>
+           
+            <h2 style="font-size: 0.9rem;">Below are your account informations</h2>
+            <div style="background-color: whitesmoke;padding: 0.5rem;">
+                <div style="display: flex; flex-direction: row; justify-content: space-between;padding: 0.5rem;">
+                    <div style="text-align: left;">Full Name</div>
+                    <div style="width: fit-content; margin-left: auto; text-transform: capitalize;">{{fullname}}</div>
+                </div>
+                <div style="display: flex; flex-direction: row; justify-content: space-between;padding: 0.5rem;">
+                    <div style="text-align: left;">Account Number</div>
+                    <div style="width: fit-content; margin-left: auto; ">{{accountNo}}</div>
+                </div>
+                <div style="display: flex; flex-direction: row; justify-content: space-between;padding: 0.5rem;">
+                    <div style="text-align: left;">Account Type</div>
+                    <div style="width: fit-content; margin-left: auto;">Standard</div>
+                </div>
+            </div>
+            <div style="padding: 1rem 0; border-bottom: 1px solid lightgrey; margin-bottom: 1rem;">Do not forget to complete your profile and start enjoying our services. We're happy to have you onboard!</div>
+            <div style="padding: 1rem 0; border-bottom: 1px solid lightgrey;margin-bottom: 1rem;">{{date}}</div>
+            <div>
+                For help or for more info, kindly contact Greenford bank support  at support@greenfordbank.com or simply reply to this email.</div>
+        </div>
+
+    </div>
+</body>
+
+</html>

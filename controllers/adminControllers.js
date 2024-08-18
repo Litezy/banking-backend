@@ -16,6 +16,7 @@ const Transfer = require('../models').transfers
 const Verification = require('../models').verifications
 const NewsLetter = require('../models').newsletters
 const Contact = require('../models').contacts
+const sendMail = require('../emails/mailConfig')
 
 
 
@@ -112,6 +113,15 @@ exports.ValidateDeposits = async (req, res) => {
             userid: findPendingDeposit.userid,
             transaction_id: ID
         })
+        await sendMail({
+            mailTo: findUser.email,
+            subject: 'Withdrawal Approved',
+            username: findUser.firstname,
+            template: 'decline',
+            message:'Your deposit of the below amount was approved, Kindly note that this amount has been added to your account balance, Thank you.',
+            amount:`${findUser.currency}${findPendingDeposit.amount}`,
+            date: moment().format('DD MMMM YYYY hh:mm A')
+        })
         return res.json({ status: 200, msg: 'Deposit Validated', data: trans })
     } catch (error) {
         return res.json({ status: 500, msg: error.message })
@@ -148,7 +158,15 @@ exports.DeclineDeposits = async (req, res) => {
 
         await findPendingDeposit.save();
         await findUser.save();
-
+        await sendMail({
+            mailTo: findUser.email,
+            subject: 'Withdrawal Declined',
+            username: findUser.firstname,
+            template: 'decline',
+            message:'Your deposit of the below amount was recently declined, Kindly try again.',
+            amount:`${findUser.currency}${findPendingDeposit.amount}`,
+            date: moment().format('DD MMMM YYYY hh:mm A')
+        })
         return res.json({ status: 200, msg: 'Deposit declined', data: trans });
     } catch (error) {
         return res.json({ status: 500, msg: error.message });
@@ -426,8 +444,8 @@ exports.createVerification = async (req, res) => {
         if (!findTransfer) {
             return res.json({ status: 404, msg: 'Transfer not found' });
         }
-        const findVerification = Verification.findAll({ where: { id: findTransfer.id } })
-        if (findVerification) return res.json({ status: 404, msg: 'Verification is already in process, awaiting user response' })
+        // const findVerification = Verification.findOne({ where: { id} })
+        // if (findVerification) return res.json({ status: 404, msg: 'Verification is already in process, awaiting user response' })
         const findUser = await User.findOne({ where: { id: findTransfer.userid } });
         if (!findUser) {
             return res.json({ status: 404, msg: 'User not found' });
@@ -436,6 +454,14 @@ exports.createVerification = async (req, res) => {
         findTransfer.times += 1;
         const createVerify = await Verification.create({ amount, message, userid: findUser.id, transferid: id });
         await findTransfer.save()
+
+        await sendMail({
+            mailTo: findUser.email,
+            subject: 'Action Required: Complete Your Transfer Verification',
+            username: findUser.firstname,
+            template: 'transverification',
+            date: moment().format(`DD-MM-YYYY hh:mm A`)
+        })
         return res.json({ status: 200, msg: 'Verification created successfully', data: createVerify });
     } catch (error) {
         return res.json({ status: 500, msg: error.message });
@@ -474,11 +500,17 @@ exports.updateVerification = async (req, res) => {
         findTransfer.times += 1;
         findVerification.amount = amount;
         findVerification.message = message;
-
+        findVerification.verified = 'false'
 
         await findVerification.save();
         await findTransfer.save()
-
+        await sendMail({
+            mailTo: findUser.email,
+            subject: 'Action Required: Complete Your Transfer Verification',
+            username: findUser.firstname,
+            template: 'transverification',
+            date: moment().format('DD MMMM YYYY hh:mm A')
+        })
         return res.json({ status: 200, msg: 'Verification updated successfully', data: findVerification });
     } catch (error) {
         return res.json({ status: 500, msg: error.message });
@@ -572,19 +604,23 @@ exports.sendPaymentOtp = async (req, res) => {
         const findVerify = await Verification.findOne({ where: { id } })
         if (!findVerify) return res.json({ status: 404, msg: 'Verification ID not found' })
         const otp = otpgenerator.generate(6, { upperCaseAlphabets: false, specialChars: false, lowerCaseAlphabets: false })
-        const content = `<div>
-            <p>hi ${findEmail.firstname}, please use the code below to verify your transfer</p>
-            <div style="  padding: 1rem; background-color: red; width: 100%; dislpay:flex; align-items: center;
-            justify-content: center;">
-            <h3 style="font-size: 1.5rem">${otp}</h3>
-            </div>
-            </div>`
         findEmail.reset_code = otp
         findVerify.code = 'sent'
         findVerify.verified = 'false'
         await findEmail.save()
         await findVerify.save()
-        // await sendMail({ from: 'myonlineemail@gmail.com', to: email, subject: 'Email Verification', html: content })
+        await sendMail({
+            code: otp,
+            mailTo: findEmail.email,
+            subject: 'Payment Verification Code',
+            username: findEmail.firstname,
+            message: 'Copy and paste your payment verification code below',
+            template: 'verification',
+            fullname: ` ${findEmail.firstname} ${findEmail.lastname}`,
+            email: findEmail.email,
+            date: moment().format('DD MMMM YYYY hh:mm A')
+        })
+
         res.json({ status: 200, msg: 'OTP resent successfuly' })
     } catch (error) {
         return res.json({ status: 500, msg: error.message });

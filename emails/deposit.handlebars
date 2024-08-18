@@ -4,81 +4,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-     <script src="https://kit.fontawesome.com/44cf4ab3ec.js" crossorigin="anonymous"></script>
 </head>
 
-<body>
-    <div
-        style="width: 100%; max-width: 32rem; margin: 0 auto; font-family: Arial, Helvetica, sans-serif; padding-bottom: 1rem;">
-        <div style=" width: 100%;max-width: 32rem; margin: 0 auto; text-align: center;">
-            <h1 style="font-size: .9rem; color: blue;">Hi {{firstname}},</h1>
-            <div style="font-size: .8rem; color: slategray; ">We're glad to let you know you've successfully made a
-                deposit into your account. Your proof of payment has been confirmed and your account creadited respectively.</div>
-            <div style="width: 70%; margin: 0 auto;">
-                <div style="width: fit-content; margin: 0 auto;"> <img style="width: 100%;"
-                        src="secureinvest.org/images/deposit.png" alt="image8"></div>
+<body style="margin: 0;background: whitesmoke;">
 
+
+    <div style=" font-family: Arial, Helvetica, sans-serif; padding-bottom: 1rem; padding-top: 1rem;">
+        <div
+            style="width: 90%; max-width: 32rem;margin: 0 auto;text-align: center; padding: 2rem 1rem; background: white; border-top: 5px solid #f35327;">
+            <h1 style="font-size: 1rem; text-transform: capitalize;">Hi {{username}},</h1>
+            <div style="font-weight: bold;text-align: center;">Your proof of deposit have been submitted successfully, Kindly wait  for thorough review and be sure to see your funds in your balance.</div>
+            <h2 style="font-size: 0.9rem;">Deposit info</h2>
+            <div style="background-color: whitesmoke;padding: 0.5rem;">
+                <div style="display: flex; flex-direction: row; justify-content: space-between;padding: 0.5rem;">
+                    <div style="text-align: left;">Amount</div>
+                    <div style="width: fit-content; margin-left: auto; text-transform: capitalize;">{{amount}}</div>
+                </div>
+                <div style="display: flex; flex-direction: row; justify-content: space-between;padding: 0.5rem;">
+                    <div style="text-align: left;">Via</div>
+                    <div style="width: fit-content; margin-left: auto;">Bank Transfer</div>
+                </div>
             </div>
-        </div>
-    </div>
-    <div
-        style="font-family: Arial, Helvetica, sans-serif;text-align: center; color: slategrey; margin-bottom: .5rem;  text-decoration: underline;">
-        Summary of your deposit</div>
-    <div style="width: 70%; margin: 0 auto; text-align: center;">
-        <div style="color: blue;">Amount Deposited: {{amount}}</div>
-        <div style="color: blue;">Via: Bank Transfer</div>
-    </div>
-
-    <div style="font-family: Arial, Helvetica, sans-serif; padding-bottom: 1rem; display: block;">
-        <div style="margin:0 auto 1rem;width: 90%;">
-            <h3 style="font-size: .9rem; text-align: center;">Get back into your account to proceed</h3>
-             
-        <div style="width: fit-content; margin: 5% auto;">
-            <a style="color: white;text-decoration: none; width: 90%; margin: 0 auto;background-color:  blue;  border-radius:10px; outline: none; border: none; padding: .5rem 2rem;font-size: .9rem;"
-                href="https://secureinvest.org/login">Login</a>
-        </div>
-        </div>
-    </div>
-
-     <div style="font-family: Arial, Helvetica, sans-serif; padding-bottom: 1rem; display: block;">
-        <div style="margin:0 auto 1rem;width: 90%;">
-            <h3 style="font-size: .9rem; text-align: center;">Get back into your account to proceed</h3>
-            
-        <div style="width: fit-content; margin: 5% auto;">
-            <a style="color: white;text-decoration: none; width: 90%; margin: 0 auto;background-color:  blue;  border-radius:10px; outline: none; border: none; padding: .5rem 2rem;font-size: .9rem;"
-                href="https://secureinvest.org/login">Login</a>
-        </div>
-        </div>
-        <div class="footeer" style="width: 90%;margin: 0 auto;">
-            <div style="color: slategrey; font-size: .8rem; width: 90%;">If you have any questions, concerns, or require assistance with the upgrade process, please do not hesitate to contact our customer support team. We are here to assist you and provide any information you may need.</div>
-            
-        </div>
-        <div class="">
-            <ul style="list-style: none;">
-                <li style="font-size: .9rem; font-weight: bold; color: slategrey;">Contact:</li>
-                <li style="margin-bottom: .5rem;"><span style=' font-weight: bold;'><a
-                            style="font-style:italic;color: rgb(22, 22, 226);text-decoration: none;"
-                            href="link">bankapplication.org.</a></span>
-                </li>
-                <li><i class="fa-solid fa-phone"></i> <span style="margin-left: .6rem;">+1 304-2167-735</span></li>
-            </ul>
-            <ul style=" list-style: none;">
-                <li style="width: 100%;"><i class="fa-solid fa-location-dot"></i><span style="margin-left: .6rem;">
-                        101-113 Branston Street, Jewellery Quarter, <br /> Birmingham, B18 6BA.</span> </li>
-                <li></li>
-            </ul>
-            <div style="width: 90%; margin: 0 auto; text-align: center; font-size: .8rem;">
-                <p>Copyright <i class="fa-regular fa-copyright"></i> Secure Invest 2023,</p>
-                <p>All rights reserved |<a style="text-decoration: none; " href="link">
-                        Terms & Conditions </a>| <a style="text-decoration: none ;"
-                        href="link">Privacy
-                        Policy</a></p>
-            </div>
+            <div style="padding: 1rem 0; border-bottom: 1px solid lightgrey;margin-bottom: 1rem;">{{date}}</div>
+            <div>
+                If you did not request for this, kindly contact Greenford bank support  at support@greenfordbank.com or simply reply to this email.</div>
+            <div>
+                Warm regards, GreenFord Bank.</div>
         </div>
 
     </div>
-
 </body>
 
 </html>
