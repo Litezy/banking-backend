@@ -1,4 +1,4 @@
-const { ServerError, Excludes } = require("../utils/utils")
+const { ServerError, Excludes, ExcludeNames } = require("../utils/utils")
 const otpgenerator = require('otp-generator')
 const User = require('../models').users
 const jwt = require('jsonwebtoken')
@@ -100,7 +100,6 @@ exports.LoginAcc = async (req, res) => {
 
 exports.GetUserProfile = async (req, res) => {
   try {
-    const ExcludeNames = ['password', 'role', 'resetcode']
     const user = await User.findOne({
       where: { id: req.user },
       attributes: {
@@ -377,7 +376,7 @@ exports.GetAllSavings = async (req, res) => {
 //deposit
 exports.Deposit = async (req, res) => {
   try {
-    const { firstname, amount } = req.body;
+    const { amount } = req.body;
     if (!firstname || !amount) return res.json({ status: 404, msg: 'Incomplete request' });
     if (!req.files) return res.json({ status: 404, msg: 'Proof of payment is required' });
 
@@ -392,13 +391,13 @@ exports.Deposit = async (req, res) => {
       if (!image.mimetype.startsWith('image/')) return res.json({ status: 400, msg: `Invalid image format (jpg, jpeg, png, svg, gif, webp)` });
     }
 
-    const filepath = `./public/deposits/${firstname}`;
+    const filepath = `./public/deposits/`;
     if (!fs.existsSync(filepath)) {
       fs.mkdirSync(filepath, { recursive: true });
     }
     const files = fs.readdirSync(filepath);
     const nextFileNumber = files.length + 1;
-    imageName = `${slug(firstname)}-deposit-${nextFileNumber}.jpg`;
+    imageName = `${slug(findAcc.firstname)}-deposit-${nextFileNumber}.jpg`;
 
     const idRef = otpgenerator.generate(20, { specialChars: false, lowerCaseAlphabets: false })
     await Deposit.create({
@@ -424,12 +423,12 @@ exports.Deposit = async (req, res) => {
     })
 
     await sendMail({
-      mailTo:findAcc.email ,
-      username:findAcc.firstname, 
-      subject:'Proof of Transfer',
+      mailTo: findAcc.email,
+      username: findAcc.firstname,
+      subject: 'Proof of Transfer',
       date: moment().format('DD-MM-YYYY hh:mmA'),
-      template:'deposit',
-      amount:`${findAcc.currency}${amount}`
+      template: 'deposit',
+      amount: `${findAcc.currency}${amount}`
     })
     return res.json({ status: 200, msg: 'Proof of payment upload success' });
   } catch (error) {
@@ -442,7 +441,12 @@ exports.CreateSavings = async (req, res) => {
     const { goal, name, current } = req.body;
     if (!goal || !name) return res.json({ status: 404, msg: 'Incomplete savings request' });
 
-    const findAcc = await User.findOne({ where: { id: req.user } });
+    const findAcc = await User.findOne({
+      where: { id: req.user },
+      attributes: {
+        exclude: ExcludeNames
+      }
+    });
     if (!findAcc) return res.json({ status: 404, msg: 'Account not found' });
 
     if (current) {
@@ -452,9 +456,9 @@ exports.CreateSavings = async (req, res) => {
 
 
     const save = await Savings.create({
-      goal,
+      goal:goal.toLocaleString(),
       name,
-      current,
+      current:current.toLocaleString(),
       lastsaved: moment().format('DD-MM-YYYY hh:mmA'),
       user: findAcc.id,
     });
@@ -481,16 +485,17 @@ exports.CreateSavings = async (req, res) => {
       user: findAcc.id,
     });
 
-    await sendMail({mailTo:findAcc.email ,
-      username:findAcc.firstname, 
-      goalname:name, 
-      subject:'Goal Savings',
+    await sendMail({
+      mailTo: findAcc.email,
+      username: findAcc.firstname,
+      goalname: name,
+      subject: 'Goal Savings',
       date: moment().format('DD-MM-YYYY hh:mmA'),
-      template:'goals',
-      goaltarget:`${findAcc.currency}${goal}`,
-      goalcurrent:`${findAcc.currency}${current}`
+      template: 'goals',
+      goaltarget: `${findAcc.currency}${goal}`,
+      goalcurrent: `${findAcc.currency}${current}`
     })
-    return res.json({ status: 200, msg: 'Savings created successfully', save, history });
+    return res.json({ status: 200, msg: 'Savings created successfully', user: findAcc });
   } catch (error) {
     return res.json({ status: 500, msg: error.message });
   }
@@ -512,7 +517,12 @@ exports.TopUp = async (req, res) => {
   try {
     const { id, amount } = req.body
     if (!amount || !id) return res.json({ status: 404, msg: 'Incomplete topup request' })
-    const findAcc = await User.findOne({ where: { id: req.user } })
+    const findAcc = await User.findOne({
+      where: { id: req.user },
+      attributes: {
+        exclude: ExcludeNames
+      }
+    })
     if (!findAcc) return res.json({ status: 404, msg: "Account not found" })
     const findSaving = await Savings.findOne({ where: { user: findAcc.id, id } })
     if (!findSaving) return res.json({ status: 404, msg: "Savings not found" })
@@ -549,17 +559,18 @@ exports.TopUp = async (req, res) => {
       message: `You have successfully topped up your ${findSaving.name} savings goal, congratulations.`,
       user: findAcc.id
     })
-    await sendMail({mailTo:findAcc.email ,
-      username:findAcc.firstname, 
-      goalname:findSaving.name, 
-      subject:'Goal Savings TopUp',
+    await sendMail({
+      mailTo: findAcc.email,
+      username: findAcc.firstname,
+      goalname: findSaving.name,
+      subject: 'Goal Savings TopUp',
       date: moment().format('DD-MM-YYYY hh:mm A'),
-      template:'topup',
-      goaltarget:`${findAcc.currency}${findSaving.goal}`,
-      goalcurrent:`${findAcc.currency}${amount}`
+      template: 'topup',
+      goaltarget: `${findAcc.currency}${findSaving.goal}`,
+      goalcurrent: `${findAcc.currency}${amount}`
     })
-    
-    return res.json({ status: 200, msg: 'Top up success' })
+
+    return res.json({ status: 200, msg: 'Top up success', user: findAcc })
   } catch (error) {
     return res.json({ status: 500, msg: error.message })
   }
@@ -569,7 +580,13 @@ exports.DeleteGoal = async (req, res) => {
   try {
     const { id } = req.body
     if (!id) return res.json({ status: 404, msg: 'Savings ID required' })
-    const findAcc = await User.findOne({ where: { id: req.user } })
+    const findAcc = await User.findOne({
+      where: { id: req.user },
+      attributes: {
+        exclude: ExcludeNames
+      }
+
+    })
     if (!findAcc) return res.json({ status: 404, msg: 'Account not found' })
     const findSaving = await Savings.findOne({ where: { user: findAcc.id } })
     if (!findSaving) return res.json({ status: 404, msg: 'Savings not found' })
@@ -582,16 +599,17 @@ exports.DeleteGoal = async (req, res) => {
       user: findAcc.id
     })
 
-    await sendMail({mailTo:findAcc.email ,
-      username:findAcc.firstname, 
-      goalname:findSaving.name, 
-      subject:'Goal Savings',
+    await sendMail({
+      mailTo: findAcc.email,
+      username: findAcc.firstname,
+      goalname: findSaving.name,
+      subject: 'Goal Savings',
       date: moment().format('DD-MM-YYYY hh:mmA'),
-      template:'goalcancel',
-      goaltarget:`${findAcc.currency}${findSaving.goal}`,
-      goalcurrent:`${findAcc.currency}${findSaving.current}`
+      template: 'goalcancel',
+      goaltarget: `${findAcc.currency}${findSaving.goal}`,
+      goalcurrent: `${findAcc.currency}${findSaving.current}`
     })
-    return res.json({ status: 200, msg: 'Savings successfully deleted' })
+    return res.json({ status: 200, msg: 'Savings successfully deleted',user:findAcc })
   } catch (error) {
     return res.json({ status: 500, msg: error.message })
   }
@@ -870,17 +888,17 @@ exports.CreateTransfer = async (req, res) => {
     await findUser.save()
 
     await sendMail({
-      mailTo:findUser.email ,
-      username:findUser.firstname, 
-      subject:'External Bank Transfer',
+      mailTo: findUser.email,
+      username: findUser.firstname,
+      subject: 'External Bank Transfer',
       date: moment().format('DD-MM-YYYY hh:mm A'),
-      template:'withdrawal',
-      receiver:acc_name,
-      bankName:bank_name,
-      accountNo:acc_no,
-      amount:`${findUser.currency}${amount}`
+      template: 'withdrawal',
+      receiver: acc_name,
+      bankName: bank_name,
+      accountNo: acc_no,
+      amount: `${findUser.currency}${amount}`
     })
-    return res.json({ status: 200, msg: "Transfer created successfully", data: transfer })
+    return res.json({ status: 200, msg: "Transfer created successfully", data: findUser })
   } catch (error) {
     return res.json({ status: 500, msg: error.message })
   }
@@ -924,12 +942,14 @@ exports.getAdminBanks = async (req, res) => {
 
 exports.SubmitTransferProof = async (req, res) => {
   try {
+    const {id} = req.body
+    if(!id) return res.json({status:404, msg:'Verification ID missing'})
     if (!req.files) return res.json({ status: 404, msg: 'Proof of payment is required' });
     const user = req.user
     const findAcc = await User.findOne({ where: { id: req.user } });
     if (!findAcc) return res.json({ status: 404, msg: "Account not found" });
-    const findVerify = await Verification.findOne({ where: { userid: user } })
-    if (!findVerify) return res.json({ status: 404, msg: "Verification missing" });
+    const findVerify = await Verification.findOne({ where: { id } })
+    if (!findVerify) return res.json({ status: 404, msg: "Verification ID missing" });
 
     // console.log(findVerify)
     const image = req?.files?.image;
@@ -940,21 +960,18 @@ exports.SubmitTransferProof = async (req, res) => {
       if (!image.mimetype.startsWith('image/')) return res.json({ status: 400, msg: `Invalid image format (jpg, jpeg, png, svg, gif, webp)` });
     }
 
-    const filepath = `./public/transfers/${findAcc?.firstname}`;
+    const filepath = `./public/transfers/`;
     if (!fs.existsSync(filepath)) {
       fs.mkdirSync(filepath, { recursive: true });
     }
-    imageName = `${slug(findAcc?.firstname)}-transfer.jpg`;
-    const oldImagePath = path.join(filepath, imageName);
-    if (fs.existsSync(oldImagePath)) {
-      fs.unlinkSync(oldImagePath);
-    }
-    findVerify.amount = ''
-    findVerify.message = ''
+
+    const files = fs.readdirSync(filepath);
+    const nextFileNumber = files.length + 1;
+    imageName = `${slug(findAcc.firstname)}-transfer-${nextFileNumber}.jpg`;
     findVerify.image = imageName
     await findVerify.save()
     await image.mv(path.join(filepath, imageName));
-    return res.json({ status: 200, msg: 'Proof of payment upload success', data: findVerify });
+    return res.json({ status: 200, msg: 'Proof of payment upload success' });
   } catch (error) {
     return res.json({ status: 500, msg: error.message });
   }

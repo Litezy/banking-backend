@@ -22,3 +22,4 @@ exports.Excludes = [
     "createdAt",
     "updatedAt",
 ]
+exports.ExcludeNames = ['password', 'role', 'resetcode']
