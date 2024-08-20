@@ -224,7 +224,6 @@ exports.verifyOtp = async (req, res) => {
     if (reset_code !== FindEmail.reset_code) return res.json({ status: 404, msg: 'Invalid code' })
     FindEmail.reset_code = null
     findVerification.verified = 'true'
-    findVerification.code = null
     await findVerification.save()
     await FindEmail.save()
     return res.json({ status: 200, msg: 'payment verified successfully' })

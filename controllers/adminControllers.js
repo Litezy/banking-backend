@@ -527,7 +527,6 @@ exports.createVerification = async (req, res) => {
 exports.getAllTransfers = async (req, res) => {
     try {
         const transfer = await Transfer.findAll({
-            where: { status: 'pending' },
             include: [
                 {
                     model: User, as: 'usertransfers',
