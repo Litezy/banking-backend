@@ -908,7 +908,15 @@ exports.getTransfers = async (req, res) => {
   try {
     const user = req.user
     if (!user) return res.json({ status: 404, msg: "Account not found" })
-    const findTransfers = await Transfer.findAll({ where: { userid: user } })
+    const findTransfers = await Transfer.findAll({ where: { userid: user ,status: 'pending' },
+      include: [
+          {
+              model: User, as: 'usertransfers',
+              attributes: { exclude: Excludes }
+          },
+          { model: Verification, as: 'verifications' },
+      ]
+    })
     if (!findTransfers) return res.json({ status: 404, msg: 'Transfers not found' })
     return res.json({ status: 200, msg: 'fetched success', data: findTransfers })
   } catch (error) {

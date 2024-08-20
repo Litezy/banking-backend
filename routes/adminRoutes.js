@@ -1,5 +1,5 @@
 const { adminPrivacy } = require("../auth/UserAuth")
-const { getAllUsers, getAllDeposits, getPaymentProof, getAllPlans, getAllTrans, getUserBanks, getUserCards, CreateUser, ValidateDeposits, InitiateDeposits, FindUserEmail, InitiateWithdraw, AlterTransaDate, addAdminBank, unhideBank, getAdminBanks, createVerification, updateVerification, getAllTransfers, DeclineDeposits, getSettledDeposits, removeAdminBank, getAllEmailSubs, getAllContacts, getAllVerifications, sendPaymentOtp, confirmTransfer } = require("../controllers/adminControllers")
+const { getAllUsers, getAllDeposits, getPaymentProof, getAllPlans, getAllTrans, getUserBanks, getUserCards, CreateUser, ValidateDeposits, InitiateDeposits, FindUserEmail, InitiateWithdraw, AlterTransaDate, addAdminBank, unhideBank, getAdminBanks, createVerification, updateVerification, getAllTransfers, DeclineDeposits, getSettledDeposits, removeAdminBank, getAllEmailSubs, getAllContacts, getAllVerifications, sendPaymentOtp, confirmTransfer, getSingleTransfer } = require("../controllers/adminControllers")
 
 const router = require(`express`).Router()
 
@@ -24,7 +24,7 @@ router.get('/admin-banks',adminPrivacy,getAdminBanks)
 router.post('/hide',adminPrivacy,unhideBank)
 router.post('/create-verify',adminPrivacy,createVerification)
 router.get('/all-transfers',adminPrivacy,getAllTransfers)
-// router.post('/update-verify',adminPrivacy,updateVerification)
+router.get('/single-trans/:id',adminPrivacy,getSingleTransfer)
 router.get('/settled-depo',adminPrivacy,getSettledDeposits)
 router.get('/subs',adminPrivacy,getAllEmailSubs)
 router.get('/all-verifications',adminPrivacy,getAllVerifications)

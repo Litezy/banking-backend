@@ -544,6 +544,28 @@ exports.getAllTransfers = async (req, res) => {
     }
 }
 
+exports.getSingleTransfer = async (req, res) => {
+    try {
+        const { id } = req.params
+        if (!id) return res.json({ status: 404, msg: 'Transfer ID is missing' })
+        const findTransfer = await Transfer.findOne({
+            where: { id },
+            include: [
+                {
+                    model: User, as: 'usertransfers',
+                    attributes: { exclude: Excludes }
+                },
+                { model: Verification, as: 'verifications' },
+            ]
+
+        })
+        if (!findTransfer) return res.json({ status: 404, msg: "Transfer not found" })
+        return res.json({ status: 200, msg: 'success', data: findTransfer })
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message });
+    }
+}
+
 exports.getAllVerifications = async (req, res) => {
 
     try {
@@ -578,6 +600,7 @@ exports.confirmTransfer = async (req, res) => {
             transaction_id: ID
         });
         await findTransfer.save()
+        return res.json({ status: 200, msg: 'Transfer successfully completed' })
     } catch (error) {
         return res.json({ status: 500, msg: error.message });
     }
@@ -633,4 +656,5 @@ exports.sendPaymentOtp = async (req, res) => {
         return res.json({ status: 500, msg: error.message });
     }
 }
+
 
