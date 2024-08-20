@@ -163,7 +163,7 @@ exports.ChangeProfileImage = async (req, res) => {
       await image.mv(`${filePath}/${imageName}`)
     }
     await findProfile.save()
-    return res.json({ status: 200, msg: 'profile image uploaded successfully' })
+    return res.json({ status: 200, msg: 'profile image uploaded successfully' ,data:findProfile})
   } catch (error) {
     return res.json({ status: 500, msg: error.message })
   }
@@ -294,6 +294,8 @@ exports.ChangeAccountEmail = async (req, res) => {
     const finduser = await User.findOne({ where: { id: req.user, email: old_email } })
     if (!finduser) return res.json({ status: 400, msg: 'Old email does not match ' })
     if (finduser.reset_code !== reset_code) return res.json({ status: 400, msg: 'Invalid code' })
+    const checkNewEmail = await User.findOne({ where: { email: new_email } })
+    if (checkNewEmail) return res.json({ status: 404, msg: "New email already exists" })
     finduser.email = new_email
     await finduser.save()
     await Notify.create({
@@ -329,22 +331,27 @@ exports.ResendOtp = async (req, res) => {
 
 exports.EditProfile = async (req, res) => {
   try {
-    const { firstname, lastname, phone, country, state, email } = req.body
-    if (!email) return res.json({ status: 404, msg: 'Email is required' })
-    const findAcc = await User.findOne({ where: { email } })
-    if (!findAcc) return res.json({ status: 404, msg: 'Account not found' })
-    if (firstname) findAcc.firstname = firstname;
-    if (lastname) findAcc.lastname = lastname;
-    if (state) findAcc.state = state;
-    if (phone) findAcc.phone = phone;
-    if (country) findAcc.country = country;
-    await findAcc.save()
-    return res.json({ status: 200, msg: 'Profile edit success' })
+    const { firstname, lastname, email } = req.body;
+    if (!email) return res.json({ status: 404, msg: 'Email is required' });
+    const findAccount = await User.findOne({ where: { email } });
+    if (!findAccount) return res.json({ status: 404, msg: 'Account not found' });
+    if (firstname || country || phone || state || lastname) {
+      if (firstname) {
+        findAccount.firstname = firstname
+      }
+      if (lastname) {
+        findAccount.lastname = lastname
+      }
+    }
+
+    await findAccount.save()
+    return res.json({ status: 200, msg: 'Profile edit success', data: findAccount });
   } catch (error) {
     console.error('Error editing profile:', error);
-    return res.json({ status: 500, msg: error.message })
+    return res.json({ status: 500, msg: error.message });
   }
-}
+};
+
 
 //Savings Controllers
 exports.GetAllSavings = async (req, res) => {
@@ -456,9 +463,9 @@ exports.CreateSavings = async (req, res) => {
 
 
     const save = await Savings.create({
-      goal:goal.toLocaleString(),
+      goal: goal.toLocaleString(),
       name,
-      current:current.toLocaleString(),
+      current: current.toLocaleString(),
       lastsaved: moment().format('DD-MM-YYYY hh:mmA'),
       user: findAcc.id,
     });
@@ -609,7 +616,7 @@ exports.DeleteGoal = async (req, res) => {
       goaltarget: `${findAcc.currency}${findSaving.goal}`,
       goalcurrent: `${findAcc.currency}${findSaving.current}`
     })
-    return res.json({ status: 200, msg: 'Savings successfully deleted',user:findAcc })
+    return res.json({ status: 200, msg: 'Savings successfully deleted', user: findAcc })
   } catch (error) {
     return res.json({ status: 500, msg: error.message })
   }
@@ -908,13 +915,14 @@ exports.getTransfers = async (req, res) => {
   try {
     const user = req.user
     if (!user) return res.json({ status: 404, msg: "Account not found" })
-    const findTransfers = await Transfer.findAll({ where: { userid: user ,status: 'pending' },
+    const findTransfers = await Transfer.findAll({
+      where: { userid: user, status: 'pending' },
       include: [
-          {
-              model: User, as: 'usertransfers',
-              attributes: { exclude: Excludes }
-          },
-          { model: Verification, as: 'verifications' },
+        {
+          model: User, as: 'usertransfers',
+          attributes: { exclude: Excludes }
+        },
+        { model: Verification, as: 'verifications' },
       ]
     })
     if (!findTransfers) return res.json({ status: 404, msg: 'Transfers not found' })
@@ -950,8 +958,8 @@ exports.getAdminBanks = async (req, res) => {
 
 exports.SubmitTransferProof = async (req, res) => {
   try {
-    const {id} = req.body
-    if(!id) return res.json({status:404, msg:'Verification ID missing'})
+    const { id } = req.body
+    if (!id) return res.json({ status: 404, msg: 'Verification ID missing' })
     if (!req.files) return res.json({ status: 404, msg: 'Proof of payment is required' });
     const user = req.user
     const findAcc = await User.findOne({ where: { id: req.user } });
