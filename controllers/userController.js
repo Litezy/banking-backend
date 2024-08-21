@@ -594,7 +594,7 @@ exports.DeleteGoal = async (req, res) => {
 
     })
     if (!findAcc) return res.json({ status: 404, msg: 'Account not found' })
-      const findSaving = await Savings.findOne({ where: { user: findAcc.id, id } })
+    const findSaving = await Savings.findOne({ where: { user: findAcc.id, id } })
     if (!findSaving) return res.json({ status: 404, msg: 'Savings not found' })
     const idRef = otpgenerator.generate(20, { specialChars: false, lowerCaseAlphabets: false })
     findAcc.balance = parseFloat(findAcc.balance) + parseFloat(findSaving.current)
@@ -683,12 +683,28 @@ exports.WithdrawGoal = async (req, res) => {
 }
 
 
+exports.getCompletedSavings = async (req, res) => {
+  try {
+    const user = req.user
+    const findAcc = await User.findOne({ where: { id: user } })
+    if (!findAcc) return res.json({ status: 404, msg: 'User not found' })
+    const findSavings = await Savings.findAll({ where: { user: findAcc.id, status: ['terminated', 'complete'] },
+     order:[['createdAt', 'DESC']]
+    })
+    if (!findSavings) return res.json({ status: 404, msg: 'Completed history not found' })
+    return res.json({ status: 200, msg: 'Completed history found', data: findSavings })
+  } catch (error) {
+    return res.json({ status: 500, msg: error.message })
+  }
+}
+
 exports.getUserSavings = async (req, res) => {
   try {
     const findAcc = await User.findOne({ where: { id: req.user } })
     if (!findAcc) return res.json({ status: 404, msg: 'Account not found' })
     const findSavings = await Savings.findAll({
-      where: { user: findAcc.id }
+      where: { user: findAcc.id },
+      order:[['createdAt','DESC']]
     });
     if (!findSavings) return res.json({ status: 404, mag: "Savings not found" })
     return res.json({ status: 200, msg: 'savings fetched successfully', data: findSavings })
