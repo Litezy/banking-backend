@@ -163,7 +163,7 @@ exports.ChangeProfileImage = async (req, res) => {
       await image.mv(`${filePath}/${imageName}`)
     }
     await findProfile.save()
-    return res.json({ status: 200, msg: 'profile image uploaded successfully' ,data:findProfile})
+    return res.json({ status: 200, msg: 'profile image uploaded successfully', data: findProfile })
   } catch (error) {
     return res.json({ status: 500, msg: error.message })
   }
@@ -358,7 +358,7 @@ exports.GetAllSavings = async (req, res) => {
     const findUser = await User.findOne({ where: { id: req.user } })
     if (!findUser) return res.json({ status: 404, msg: 'Unauthorized account' })
     const findUserSavings = await Savings.findAll({
-      where: { user: findUser.id },
+      where: { user: findUser.id, status: 'inprogress' },
       order: [['createdAt', 'DESC']]
     })
     if (!findUserSavings || findUserSavings.length === 0) return res.json({ status: 404, msg: 'No savings found' });
@@ -594,28 +594,89 @@ exports.DeleteGoal = async (req, res) => {
 
     })
     if (!findAcc) return res.json({ status: 404, msg: 'Account not found' })
-    const findSaving = await Savings.findOne({ where: { user: findAcc.id } })
+      const findSaving = await Savings.findOne({ where: { user: findAcc.id, id } })
     if (!findSaving) return res.json({ status: 404, msg: 'Savings not found' })
+    const idRef = otpgenerator.generate(20, { specialChars: false, lowerCaseAlphabets: false })
     findAcc.balance = parseFloat(findAcc.balance) + parseFloat(findSaving.current)
+
     await findAcc.save()
-    await findSaving.destroy()
+    findSaving.status = 'terminated'
+
+    await findSaving.save()
     await Notify.create({
       type: 'Savings deletion',
-      message: `You have successfully deleted your ${findSaving.name} savings goal, and your currents savings sum has been added back to your account balance.`,
+      message: `You have successfully terminated your ${findSaving.name} savings goal, and your currents savings sum has been added back to your account balance.`,
       user: findAcc.id
     })
 
+    await TransHistory.create({
+      type: 'Goal Savings Terminated',
+      amount: findSaving.current,
+      status: 'success',
+      date: moment().format('DD-MM-YYYY hh:mmA'),
+      message: `You have successfully terminated your ${findSaving.name} savings goal, and your currents savings sum has been added back to your account balance.`,
+      transaction_id: idRef,
+      userid: findAcc.id,
+    });
     await sendMail({
       mailTo: findAcc.email,
       username: findAcc.firstname,
       goalname: findSaving.name,
-      subject: 'Goal Savings',
+      subject: 'Goal Savings Terminated',
       date: moment().format('DD-MM-YYYY hh:mmA'),
       template: 'goalcancel',
       goaltarget: `${findAcc.currency}${findSaving.goal}`,
       goalcurrent: `${findAcc.currency}${findSaving.current}`
     })
     return res.json({ status: 200, msg: 'Savings successfully deleted', user: findAcc })
+  } catch (error) {
+    return res.json({ status: 500, msg: error.message })
+  }
+}
+exports.WithdrawGoal = async (req, res) => {
+  try {
+    const { id } = req.body
+    if (!id) return res.json({ status: 404, msg: 'Savings ID required' })
+    const findAcc = await User.findOne({
+      where: { id: req.user },
+      attributes: {
+        exclude: ExcludeNames
+      }
+
+    })
+    const findSaving = await Savings.findOne({ where: { user: findAcc.id, id } })
+    if (!findSaving) return res.json({ status: 404, msg: 'Savings not found' })
+    findAcc.balance = parseFloat(findAcc.balance) + parseFloat(findSaving.current)
+    await findAcc.save()
+    findSaving.status = 'complete'
+    await findSaving.save()
+    await Notify.create({
+      type: 'Savings withdrawal',
+      message: `You have successfully withdrawn your ${findSaving.name} savings goal, and your currents savings sum has been added  to your account balance, Congratulations.`,
+      user: findAcc.id
+    })
+    const idRef = otpgenerator.generate(20, { specialChars: false, lowerCaseAlphabets: false });
+    await TransHistory.create({
+      type: 'Goal Savings Reached',
+      amount: findSaving.current,
+      status: 'success',
+      date: moment().format('DD-MM-YYYY hh:mmA'),
+      message: `You have successfully withdrawn your ${findSaving.name} goal target, this amount will be added to your balance. Congratulations!`,
+      transaction_id: idRef,
+      userid: findAcc.id,
+    });
+
+    await sendMail({
+      mailTo: findAcc.email,
+      username: findAcc.firstname,
+      goalname: findSaving.name,
+      subject: 'Goal Savings Reached',
+      date: moment().format('DD-MM-YYYY hh:mmA'),
+      template: 'goalreached',
+      goaltarget: `${findAcc.currency}${findSaving.goal}`,
+      goalcurrent: `${findAcc.currency}${findSaving.current}`
+    })
+    return res.json({ status: 200, msg: 'Savings successfully withdrawn', user: findAcc })
   } catch (error) {
     return res.json({ status: 500, msg: error.message })
   }
