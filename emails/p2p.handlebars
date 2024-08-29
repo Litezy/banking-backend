@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+<body style="margin: 0;background: whitesmoke;">
+
+
+    <div style=" font-family: Arial, Helvetica, sans-serif; padding-bottom: 1rem; padding-top: 1rem;">
+        <div
+            style="width: 90%; max-width: 32rem;margin: 0 auto;text-align: center; padding: 2rem 1rem; background: white; border-top: 5px solid #f35327;">
+            <h1 style="font-size: 1rem; text-transform: capitalize;">Hi {{username}},</h1>
+            <div style="font-weight: light;text-align: center;">{{message}}</div>
+            <h2 style="font-size: 1.2rem;">Internal Transfer Details</h2>
+            <div style="background-color: whitesmoke;padding: 0.5rem;">
+                <div style="display: flex; flex-direction: row; justify-content: space-between;padding: 0.5rem;">
+                    <div style="text-align: left;">Senders' Name</div>
+                    <div style="width: fit-content; margin-left: auto; text-transform: capitalize;">{{sender}}</div>
+                </div>
+                <div style="display: flex; flex-direction: row; justify-content: space-between;padding: 0.5rem;">
+                    <div style="text-align: left;">Receiver's Name</div>
+                    <div style="width: fit-content; margin-left: auto; text-transform: capitalize;">{{receiver}}</div>
+                </div>
+                <div style="display: flex; flex-direction: row; justify-content: space-between;padding: 0.5rem;">
+                    <div style="text-align: left;">Amount</div>
+                    <div style="width: fit-content; margin-left: auto;">{{amount}}</div>
+                </div>
+            </div>
+            <div style="padding: 1rem 0; border-bottom: 1px solid lightgrey;margin-bottom: 1rem;">{{date}}</div>
+            <div>
+                If you need help or support, kindly contact Greenford bank support at support@greenfordbank.com or
+                simply reply to this email.</div>
+        </div>
+
+    </div>
+</body>
+
+</html>

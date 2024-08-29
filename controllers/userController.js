@@ -4,6 +4,7 @@ const User = require('../models').users
 const jwt = require('jsonwebtoken')
 const moment = require('moment')
 const Savings = require('../models').savings
+const { Op } = require('sequelize');
 const path = require('path')
 const Banks = require('../models').banks
 const Loan = require('../models').loans
@@ -423,7 +424,7 @@ exports.Deposit = async (req, res) => {
       userid: findAcc.id
     })
     await Notify.create({
-      type: 'Transfer',
+      type: 'Deposit',
       message: `You have successfully initiated a deposit of ${findAcc.currency}${amount}. pending approval.`,
       user: findAcc.id
     })
@@ -688,8 +689,9 @@ exports.getCompletedSavings = async (req, res) => {
     const user = req.user
     const findAcc = await User.findOne({ where: { id: user } })
     if (!findAcc) return res.json({ status: 404, msg: 'User not found' })
-    const findSavings = await Savings.findAll({ where: { user: findAcc.id, status: ['terminated', 'complete'] },
-     order:[['createdAt', 'DESC']]
+    const findSavings = await Savings.findAll({
+      where: { user: findAcc.id, status: ['terminated', 'complete'] },
+      order: [['createdAt', 'DESC']]
     })
     if (!findSavings) return res.json({ status: 404, msg: 'Completed history not found' })
     return res.json({ status: 200, msg: 'Completed history found', data: findSavings })
@@ -704,7 +706,7 @@ exports.getUserSavings = async (req, res) => {
     if (!findAcc) return res.json({ status: 404, msg: 'Account not found' })
     const findSavings = await Savings.findAll({
       where: { user: findAcc.id },
-      order:[['createdAt','DESC']]
+      order: [['createdAt', 'DESC']]
     });
     if (!findSavings) return res.json({ status: 404, mag: "Savings not found" })
     return res.json({ status: 200, msg: 'savings fetched successfully', data: findSavings })
@@ -789,7 +791,7 @@ exports.getTransHistory = async (req, res) => {
     if (!findAcc) return res.hson({ status: 404, msg: 'Account not found' })
     const findHistory = await TransHistory.findAll({
       where: { userid: findAcc.id },
-      order: [['date', 'ASC']]
+      order: [['date', 'DESC']]
     })
     if (!findHistory) return res.json({ status: 404, msg: 'Transaction history not found' })
     return res.json({ status: 200, msg: 'Transaction history fetched successfully', data: findHistory })
@@ -942,7 +944,7 @@ exports.SubmitKYC = async (req, res) => {
 
 exports.CreateTransfer = async (req, res) => {
   try {
-    const { acc_no, acc_name, bank_name, route, amount } = req.body
+    const { acc_no, acc_name, bank_name, swift, memo, amount } = req.body
     if (!acc_name || !acc_no || !bank_name || !amount) return res.json({ status: 404, msg: "Incomplete request" })
     const findUser = await User.findOne({ where: { id: req.user } })
     if (!findUser) return res.json({ status: 404, msg: 'User not found' })
@@ -951,7 +953,7 @@ exports.CreateTransfer = async (req, res) => {
     if (amount > findUser.balance) return res.json({ status: 404, msg: "Insufficient funds" })
     findUser.balance = parseFloat(findUser.balance) - parseFloat(amount)
     const transfer = await Transfer.create({
-      acc_name, acc_no, bank_name, route, amount, userid: findUser.id
+      acc_name, acc_no, bank_name, swift, amount, memo, userid: findUser.id
     })
     const idRef = otpgenerator.generate(20, { specialChars: false, lowerCaseAlphabets: false })
     await TransHistory.create({
@@ -1032,6 +1034,107 @@ exports.getAdminBanks = async (req, res) => {
 }
 
 
+exports.fetchP2PUser = async (req, res) => {
+  try {
+    const { tag } = req.params
+    if (!tag) return res.json({ status: 404, msg: 'Incomplete request' })
+    const user = await User.findOne({
+      where: {
+        [Op.or]: [{ email: tag }, { phone: tag }]
+      },
+      attributes: { exclude: Excludes }
+    });
+    if (!user) return res.json({ status: 404, msg: 'User not found' })
+      // console.log(user.id)
+    if (user.id === req.user) return res.json({ status: 404, msg: "Can't send to self" })
+    return res.json({ status: 200, msg: 'fetched successfully', data: user })
+  }
+  catch (error) {
+    return res.json({ status: 500, msg: error.message })
+  }
+}
+
+
+exports.creditP2P = async (req, res) => {
+  try {
+    const { receiveremail, amount } = req.body
+    const user = req.user
+    if (!receiveremail || !amount) return res.json({ status: 404, msg: "Incomplete request" })
+
+    const findSender = await User.findOne({ where: { id: user } })
+
+    if (!findSender) return res.json({ status: 404, msg: "Account not found" })
+
+    const findReceiver = await User.findOne({ where: { email: receiveremail } })
+
+    if (!findReceiver) return res.json({ status: 404, msg: "Receiver not found" })
+
+    if (findSender.balance < parseFloat(amount)) return res.json({ status: 404, msg: 'Insufficient funds' })
+    findSender.balance = parseFloat(findSender.balance) - parseFloat(amount);
+    findReceiver.balance = parseFloat(findReceiver.balance) + parseFloat(amount);
+    findSender.save()
+    findReceiver.save()
+    const idRef = otpgenerator.generate(20, { specialChars: false, lowerCaseAlphabets: false })
+    const idRef2 = otpgenerator.generate(20, { specialChars: false, lowerCaseAlphabets: false })
+
+    await TransHistory.create({
+      type: 'Internal Transfer Out',
+      amount: amount,
+      status: 'success',
+      date: moment().format('DD-MM-YYYY hh:mmA'),
+      message: `You have successfully made an internal transfer of ${findSender.currency}${amount}  to ${findReceiver.firstname}. `,
+      transaction_id: idRef,
+      userid: findSender.id
+    })
+    await TransHistory.create({
+      type: 'Internal Transfer In',
+      amount: amount,
+      status: 'success',
+      date: moment().format('DD-MM-YYYY hh:mmA'),
+      message: `You have received a transfer of ${findSender.currency}${amount} from ${findSender.firstname}. `,
+      transaction_id: idRef2,
+      userid: findReceiver.id
+    })
+    await Notify.create({
+      type: 'Internal Transfer',
+      message: `You have successfully  transferred ${findSender.currency}${amount} to ${findReceiver.firstname}.`,
+      user: findSender.id
+    })
+    await Notify.create({
+      type: 'Internal Transfer',
+      message: `You have successfully received ${findSender.currency}${amount} from ${findSender.firstname}.`,
+      user: findReceiver.id
+    })
+
+
+    await sendMail({
+      mailTo: findSender.email,
+      username: findSender.firstname,
+      subject: 'Internal Bank Transfer',
+      message: 'Your transfer was successful, find the details below.',
+      date: moment().format('DD-MM-YYYY hh:mm A'),
+      template: 'p2p',
+      receiver: `${findReceiver.firstname} ${findReceiver.lastname}`,
+      sender: `${findSender.firstname} ${findSender.lastname}`,
+      amount: `${findSender.currency}${amount}`
+    })
+    await sendMail({
+      mailTo: findReceiver.email,
+      username: findReceiver.firstname,
+      subject: 'Internal Bank Transfer',
+      message: 'You received money from a fellow user, find the details below.',
+      date: moment().format('DD-MM-YYYY hh:mm A'),
+      template: 'p2p',
+      receiver: `${findReceiver.firstname} ${findReceiver.lastname}`,
+      sender: `${findSender.firstname} ${findSender.lastname}`,
+      amount: `${findSender.currency}${amount}`
+    })
+    return res.json({ status: 200, msg: 'Transfer success' })
+  } catch (error) {
+    return res.json({ status: 500, msg: error.message })
+  }
+
+}
 exports.SubmitTransferProof = async (req, res) => {
   try {
     const { id } = req.body

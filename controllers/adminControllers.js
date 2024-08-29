@@ -474,55 +474,6 @@ exports.createVerification = async (req, res) => {
         return res.json({ status: 500, msg: error.message });
     }
 }
-// exports.updateVerification = async (req, res) => {
-//     try {
-//         const { id, amount, message } = req.body;
-//         if (!amount || !message || !id) {
-//             return res.json({ status: 400, msg: "Incomplete request" });
-//         }
-
-//         const user = req.user;
-//         const findAdmin = await User.findOne({ where: { id: user } });
-//         if (!findAdmin || findAdmin.role !== 'admin') {
-//             return res.json({ status: 403, msg: 'Unauthorized access to this route' });
-//         }
-
-//         const findVerification = await Verification.findOne({ where: { id } });
-//         if (!findVerification) {
-//             return res.json({ status: 404, msg: 'Verification not found' });
-//         }
-//         if (findVerification.verified === 'false') return res.json({ status: 404, msg: "Updated verification not confirmed yet" })
-
-//         const findTransfer = await Transfer.findOne({ where: { id: findVerification.transferid } });
-//         if (!findTransfer) {
-//             return res.json({ status: 404, msg: 'Transfer not found' });
-//         }
-
-//         const findUser = await User.findOne({ where: { id: findVerification.userid } });
-//         if (!findUser) {
-//             return res.json({ status: 404, msg: 'User not found' });
-//         }
-
-//         findTransfer.times = Number(findTransfer.times) || 0;
-//         findTransfer.times += 1;
-//         findVerification.amount = amount;
-//         findVerification.message = message;
-//         findVerification.verified = 'false'
-
-//         await findVerification.save();
-//         await findTransfer.save()
-//         await sendMail({
-//             mailTo: findUser.email,
-//             subject: 'Action Required: Complete Your Transfer Verification',
-//             username: findUser.firstname,
-//             template: 'transverification',
-//             date: moment().format('DD MMMM YYYY hh:mm A')
-//         })
-//         return res.json({ status: 200, msg: 'Verification updated successfully', data: findVerification });
-//     } catch (error) {
-//         return res.json({ status: 500, msg: error.message });
-//     }
-// };
 
 exports.getAllTransfers = async (req, res) => {
     try {

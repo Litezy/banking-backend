@@ -1,5 +1,5 @@
 const { userMiddleware } = require('../auth/UserAuth')
-const { SignupUserAccount, GetUserProfile, LoginAcc, logOutUser, GetAllSavings, CreateSavings, getAllCurrentSavings, requestLoan, ChangeProfileImage, EditProfile, TopUp, getTransHistory, DeleteGoal, createCards, getAllUserCards, getUserNotifications, MarkReadNotifications, findUserAccount, ChangeUserPassword, ChangeAccountEmail, RequestEmailOtp, MarkAllAsRead, getBankList, addBank, Deposit, CreateTransfer, getTransfers, getVerifications, getAdminBanks, SubmitTransferProof, getAllTransfers, getUserSavings, contactUs, NewsLetterSubscription, verifyOtp, VerifyEmail, ResendOtp, Testmail, VerifyPasswordChange, WithdrawGoal, getCompletedSavings } = require('../controllers/userController')
+const { SignupUserAccount, GetUserProfile, LoginAcc, logOutUser, GetAllSavings, CreateSavings, getAllCurrentSavings, requestLoan, ChangeProfileImage, EditProfile, TopUp, getTransHistory, DeleteGoal, createCards, getAllUserCards, getUserNotifications, MarkReadNotifications, findUserAccount, ChangeUserPassword, ChangeAccountEmail, RequestEmailOtp, MarkAllAsRead, getBankList, addBank, Deposit, CreateTransfer, getTransfers, getVerifications, getAdminBanks, SubmitTransferProof, getAllTransfers, getUserSavings, contactUs, NewsLetterSubscription, verifyOtp, VerifyEmail, ResendOtp, Testmail, VerifyPasswordChange, WithdrawGoal, getCompletedSavings, fetchP2PUser, creditP2P } = require('../controllers/userController')
 
 const router = require('express').Router()
 
@@ -36,7 +36,9 @@ router.get('/save-history', userMiddleware, getCompletedSavings)
 
 //loans/cards/banks/transfers
 router.post('/create-card', userMiddleware, createCards)
-router.get('/user-cards', userMiddleware, getAllUserCards)
+router.get('/create-card', userMiddleware, createCards)
+router.get('/find-p2p/:tag', userMiddleware, fetchP2PUser)
+router.post('/credit-p2p', userMiddleware, creditP2P)
 router.get('/request-loan', userMiddleware, requestLoan)
 router.get('/get-user-banks', userMiddleware, getBankList)
 router.post('/add-bank', userMiddleware, addBank)
