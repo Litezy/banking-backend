@@ -36,7 +36,7 @@ router.get('/save-history', userMiddleware, getCompletedSavings)
 
 //loans/cards/banks/transfers
 router.post('/create-card', userMiddleware, createCards)
-router.get('/create-card', userMiddleware, createCards)
+router.get('/user-cards', userMiddleware, getAllUserCards)
 router.get('/find-p2p/:tag', userMiddleware, fetchP2PUser)
 router.post('/credit-p2p', userMiddleware, creditP2P)
 router.get('/request-loan', userMiddleware, requestLoan)
