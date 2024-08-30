@@ -32,6 +32,8 @@ const sequelize = new Sequelize(process.env.DB_NAME || 'banking', process.env.DB
   db.transfers = require(`./transferModel`)(sequelize,DataTypes)
   db.contacts = require(`./contactModel`)(sequelize,DataTypes)
   db.newsletters = require(`./newsLetter`)(sequelize,DataTypes)
+  db.tickets = require(`./ticketsModel`)(sequelize,DataTypes)
+  db.messages = require(`./messagesModel`)(sequelize,DataTypes)
 
   //One to Many relationships
   db.users.hasMany(db.notifications,{foreignKey:'user', as:'usernotify'})
@@ -45,6 +47,8 @@ const sequelize = new Sequelize(process.env.DB_NAME || 'banking', process.env.DB
   db.users.hasMany(db.verifications, {foreignKey:"userid" ,as:"userverify"})
   db.users.hasMany(db.transfers, {foreignKey:"userid" ,as:"usertransfers"})
   db.transfers.hasMany(db.verifications, {foreignKey:"transferid" ,as:"verifications"})
+  db.users.hasMany(db.tickets, {foreignKey:"userid" ,as:"user-tickets"})
+  db.tickets.hasMany(db.messages, {foreignKey:"userid" ,as:"ticket-messages"})
 
 
 
@@ -59,7 +63,9 @@ const sequelize = new Sequelize(process.env.DB_NAME || 'banking', process.env.DB
   db.kycs.belongsTo(db.users, {foreignKey:"userid" ,as:"userkycs"})
   db.verifications.belongsTo(db.users, {foreignKey:"userid" ,as:"userverify"}) 
   db.verifications.belongsTo(db.transfers, {foreignKey:"transferid" ,as:"verifications"}) 
-  db.transfers.belongsTo(db.users, {foreignKey:"userid" ,as:"usertransfers"}) 
+  db.transfers.belongsTo(db.users, {foreignKey:"userid" ,as:"usertransfers"})
+  db.tickets.belongsTo(db.users, {foreignKey:'userid', as:'user-tickets'}) 
+  db.messages.belongsTo(db.tickets, {foreignKey:'userid', as:'ticket-messages'}) 
   
 
   db.sequelize.sync({force: false})

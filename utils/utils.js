@@ -5,7 +5,6 @@ exports.ServerError = (res, error) => {
 }
 exports.Excludes = [
     "dial_code",
-    "phone",
     "password",
     "reset_code",
     "status",
