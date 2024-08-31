@@ -1,5 +1,6 @@
 const { adminPrivacy } = require("../auth/UserAuth")
 const { getAllUsers, getAllDeposits, getPaymentProof, getAllPlans, getAllTrans, getUserBanks, getUserCards, CreateUser, ValidateDeposits, InitiateDeposits, FindUserEmail, InitiateWithdraw, AlterTransaDate, addAdminBank, unhideBank, getAdminBanks, createVerification, updateVerification, getAllTransfers, DeclineDeposits, getSettledDeposits, removeAdminBank, getAllEmailSubs, getAllContacts, getAllVerifications, sendPaymentOtp, confirmTransfer, getSingleTransfer } = require("../controllers/adminControllers")
+const { createMessageAdmin } = require("../controllers/ticketsControllers")
 
 const router = require(`express`).Router()
 
@@ -31,5 +32,8 @@ router.get('/all-verifications',adminPrivacy,getAllVerifications)
 router.get('/contacts',adminPrivacy,getAllContacts)
 router.post('/otp', adminPrivacy, sendPaymentOtp)
 router.post('/confirm-trans', adminPrivacy, confirmTransfer)
+router.post('/admin-response', adminPrivacy, createMessageAdmin)
+
+
 
 module.exports = router

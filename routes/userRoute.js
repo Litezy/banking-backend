@@ -1,4 +1,5 @@
 const { userMiddleware } = require('../auth/UserAuth')
+const { createTicket, getOneTicketMessages, getAllPendingTickets, getAllActiveTickets, getAllClosedTickets, sendMessage } = require('../controllers/ticketsControllers')
 const { SignupUserAccount, GetUserProfile, LoginAcc, logOutUser, GetAllSavings, CreateSavings, getAllCurrentSavings, requestLoan, ChangeProfileImage, EditProfile, TopUp, getTransHistory, DeleteGoal, createCards, getAllUserCards, getUserNotifications, MarkReadNotifications, findUserAccount, ChangeUserPassword, ChangeAccountEmail, RequestEmailOtp, MarkAllAsRead, getBankList, addBank, Deposit, CreateTransfer, getTransfers, getVerifications, getAdminBanks, SubmitTransferProof, getAllTransfers, getUserSavings, contactUs, NewsLetterSubscription, verifyOtp, VerifyEmail, ResendOtp, Testmail, VerifyPasswordChange, WithdrawGoal, getCompletedSavings, fetchP2PUser, creditP2P } = require('../controllers/userController')
 
 const router = require('express').Router()
@@ -54,5 +55,14 @@ router.post('/upload-proof', userMiddleware, SubmitTransferProof)
 router.get('/trans-history', userMiddleware, getTransHistory)
 router.get('/user-notifications', userMiddleware, getUserNotifications)
 router.post('/mark-read', userMiddleware, MarkReadNotifications)
+
+//tickets
+router.post('/create-ticket', userMiddleware, createTicket)
+router.get('/one-ticket-msgs/:id',userMiddleware,getOneTicketMessages)
+router.get('/pending-tickets',userMiddleware,getAllPendingTickets)
+router.get('/active-tickets',userMiddleware,getAllActiveTickets)
+router.get('/closed-tickets',userMiddleware,getAllClosedTickets)
+router.post('/send-msg', userMiddleware, sendMessage)
+
 
 module.exports = router
