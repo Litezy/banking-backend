@@ -76,16 +76,7 @@ exports.getOneTicketMessages = async (req, res) => {
         return res.json({ status: 500, msg: error.message })
     }
 }
-exports.getAllPendingTickets = async (req, res) => {
-    try {
-        const user = req.user
-        const findTickets = await Ticket.findAll({ where: { status: 'pending', userid: user } })
-        if (!findTickets) return res.json({ status: 404, msg: 'Ticket not found' })
-        return res.json({ status: 200, msg: 'Tickets fetched successfully', data: findTickets })
-    } catch (error) {
-        return res.json({ status: 500, msg: error.message })
-    }
-}
+
 exports.getAllActiveTickets = async (req, res) => {
     try {
         const user = req.user
@@ -127,7 +118,8 @@ exports.createMessageAdmin = async (req, res) => {
             sender: findreceiver.id,
             ticketid: id
         })
-        findTicketId.status = 'active'
+
+        findTicketId.adminid = findreceiver.id
         await findTicketId.save()
 
         return res.json({ status: 200, msg: 'message sent' })
@@ -143,16 +135,32 @@ exports.sendMessage = async (req, res) => {
         if (!id || !message) return res.json({ status: 404, msg: 'Incomplete request to send message' })
         const findTicketId = await Ticket.findOne({ where: { id } })
         if (!findTicketId) return res.json({ status: 404, msg: "ID not found" })
-            
+
         const findSender = await User.findOne({ where: { id: user } })
         if (!findSender) return res.json({ status: 404, msg: "sender not found" })
 
-         await Messages.create({
+        await Messages.create({
             message,
             sender: findSender.id,
             ticketid: id
         })
         return res.json({ status: 200, msg: 'message sent' })
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message })
+    }
+}
+
+exports.fetchAdmin = async (req, res) => {
+    try {
+        const { id } = req.params
+        if (!id) return res.json({ status: 404, msg: "ID is missing" })
+        const findTicket = await Ticket.findOne({ where: { id } })
+        if (!findTicket) return res.json({ status: 404, msg: "Ticket ID not found" })
+        const findAdmin = await User.findOne({ where: { id: findTicket.adminid },
+       attributes:{exclude:TicketExcludes}
+        })
+        if (!findAdmin) return res.json({ status: 404, msg: "Admin not found" })
+        return res.json({ status: 200, msg: 'admin fetch success', data: findAdmin })
     } catch (error) {
         return res.json({ status: 500, msg: error.message })
     }

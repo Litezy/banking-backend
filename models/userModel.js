@@ -2,6 +2,7 @@ module.exports = (sequelize, DataTypes) => {
     return sequelize.define('user', {
         firstname: {type: DataTypes.STRING},
         lastname: {type: DataTypes.STRING},
+        kyc: {type: DataTypes.STRING, defaultValue:'unverified'},
         email: {type: DataTypes.STRING},
         image: {type: DataTypes.STRING},
         role: {type: DataTypes.STRING, defaultValue: 'user'},

@@ -15,7 +15,7 @@ const fs = require('fs')
 const slug = require('slug')
 const axios = require('axios')
 const Deposit = require('../models').deposits
-const KYC = require('../models')
+const KYC = require('../models').kycs
 const Transfer = require('../models').transfers
 const Verification = require('../models').verifications
 const adminBank = require('../models').adminbanks
@@ -875,18 +875,21 @@ exports.SubmitKYC = async (req, res) => {
     const findUserKyc = await KYC.findOne({ where: { userid: req.user, status: 'pending' } })
     if (findUserKyc) return res.json({ statsu: 404, msg: 'You already have submitted Kyc, please wait for approval' })
     const findApproveduser = await KYC.findOne({ where: { userid: req.user, status: 'verified' } })
-    if (findApproveduser) return res.json({ status: 404, msg: 'Sorry, your account is already verified' })
-    const { firstname, lastname, marital, dob, address, zip, id_type, id_number } = req.body
-    if (!firstname) return res.json({ status: 404, msg: 'Firstname is required' })
-    if (!lastname) return res.json({ status: 404, msg: 'Lastname is required' })
+    if (findApproveduser) return res.json({ status: 404, msg: 'Your account is already verified' })
+    const { marital, dob, first_address, second_address, zip, id_type, id_number } = req.body
     if (!marital) return res.json({ status: 404, msg: 'Marital status is required' })
     if (!dob) return res.json({ status: 404, msg: 'Date of birth is required' })
-    if (!address) return res.json({ status: 404, msg: 'Address is required is required' })
+    if (!first_address) return res.json({ status: 404, msg: 'First line address is required' })
     if (!zip) return res.json({ status: 404, msg: 'Zip code is required' })
     if (!id_type) return res.json({ status: 404, msg: 'ID type is required' })
     if (!id_number) return res.json({ status: 404, msg: 'ID number is required' })
     const finduser = KYC.findOne({ where: { userid: req.user } })
-    const findOwner = await User.findOne({ where: { id: req.user } })
+    const findOwner = await User.findOne({
+      where: { id: req.user },
+      attributes: {
+        exclude: ExcludeNames
+      }
+    })
     if (!findOwner) return res.json({ status: 404, msg: 'User not found' })
     if (!finduser) return res.json({ status: 404, msg: 'Unauthorized Access' })
     if (!req.files) return res.json({ status: 404, msg: 'ID images are required' })
@@ -894,7 +897,7 @@ exports.SubmitKYC = async (req, res) => {
     const backimg = req?.files?.backimg
     let imagefront;
     let imageback;
-    const filepath = `./public/kycs/${firstname} ${lastname}'s kyc`
+    const filepath = path.join(__dirname, '../public/kycs', `${findOwner.firstname} ${findOwner.lastname}'s kyc`);
 
     if (frontimg) {
       if (frontimg.size >= 1000000) return res.json({ status: 404, msg: `Cannot upload up to 1MB` })
@@ -905,17 +908,16 @@ exports.SubmitKYC = async (req, res) => {
       if (!backimg.mimetype.startsWith('image/')) return res.json({ status: 400, msg: `Invalid image format (jpg, jpeg, png, svg, gif, webp)` })
     }
     if (!fs.existsSync(filepath)) {
-      fs.mkdirSync(filepath)
+      fs.mkdirSync(filepath, { recursive: true }); // Use recursive: true
     }
-    imagefront = `${slug(`${firstname} front ID`, '-')}.png`
-    imageback = `${slug(`${firstname} back ID`, '-')}.png`
+    imagefront = `${slug(`${findOwner.firstname} front ID`, '-')}.png`
+    imageback = `${slug(`${findOwner.firstname} back ID`, '-')}.png`
     const newKyc = await KYC.create({
-      firstname,
-      lastname,
+      first_address,
+      second_address,
       id_number,
       marital,
       dob,
-      address,
       zip,
       id_type,
       status: 'pending',
@@ -924,7 +926,7 @@ exports.SubmitKYC = async (req, res) => {
       userid: req.user
     })
 
-    findOwner.kyc_status = 'submitted'
+    findOwner.kyc = 'submitted'
     await findOwner.save()
     await frontimg.mv(`${filepath}/${imagefront}`)
     await backimg.mv(`${filepath}/${imageback}`)
@@ -1045,7 +1047,7 @@ exports.fetchP2PUser = async (req, res) => {
       attributes: { exclude: Excludes }
     });
     if (!user) return res.json({ status: 404, msg: 'User not found' })
-      // console.log(user.id)
+    // console.log(user.id)
     if (user.id === req.user) return res.json({ status: 404, msg: "Can't send to self" })
     return res.json({ status: 200, msg: 'fetched successfully', data: user })
   }

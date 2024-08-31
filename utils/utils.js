@@ -25,7 +25,6 @@ exports.TicketExcludes = [
     "dial_code",
     "password",
     "reset_code",
-    "status",
     "pin",
     "refid",
     "upline",
