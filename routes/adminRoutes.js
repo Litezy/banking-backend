@@ -1,6 +1,6 @@
 const { adminPrivacy } = require("../auth/UserAuth")
-const { getAllUsers, getAllDeposits, getPaymentProof, getAllPlans, getAllTrans, getUserBanks, getUserCards, CreateUser, ValidateDeposits, InitiateDeposits, FindUserEmail, InitiateWithdraw, AlterTransaDate, addAdminBank, unhideBank, getAdminBanks, createVerification, updateVerification, getAllTransfers, DeclineDeposits, getSettledDeposits, removeAdminBank, getAllEmailSubs, getAllContacts, getAllVerifications, sendPaymentOtp, confirmTransfer, getSingleTransfer } = require("../controllers/adminControllers")
-const { createMessageAdmin } = require("../controllers/ticketsControllers")
+const { getAllUsers, getAllDeposits, getPaymentProof, getAllPlans, getAllTrans, getUserBanks, getUserCards, CreateUser, ValidateDeposits, InitiateDeposits, FindUserEmail, InitiateWithdraw, AlterTransaDate, addAdminBank, unhideBank, getAdminBanks, createVerification,  getAllTransfers, DeclineDeposits, getSettledDeposits, removeAdminBank, getAllEmailSubs, getAllContacts, getAllVerifications, sendPaymentOtp, confirmTransfer, getSingleTransfer, getAllActiveTickets, getAllClosedTickets, getAllUserKYCS } = require("../controllers/adminControllers")
+const { createMessageAdmin, getOneTicketMessagesAdmin, closeTicket } = require("../controllers/ticketsControllers")
 
 const router = require(`express`).Router()
 
@@ -32,7 +32,15 @@ router.get('/all-verifications',adminPrivacy,getAllVerifications)
 router.get('/contacts',adminPrivacy,getAllContacts)
 router.post('/otp', adminPrivacy, sendPaymentOtp)
 router.post('/confirm-trans', adminPrivacy, confirmTransfer)
+
+
+// tickets
+router.get('/all-active-tickets', adminPrivacy, getAllActiveTickets)
 router.post('/admin-response', adminPrivacy, createMessageAdmin)
+router.get('/all-closed-tickets', adminPrivacy, getAllClosedTickets)
+router.get('/all-kycs', adminPrivacy, getAllUserKYCS)
+router.get('/one-ticket-msgs/:id',adminPrivacy,getOneTicketMessagesAdmin)
+router.post('/close-ticket/:id',adminPrivacy,closeTicket)
 
 
 

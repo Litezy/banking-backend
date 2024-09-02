@@ -76,6 +76,29 @@ exports.getOneTicketMessages = async (req, res) => {
         return res.json({ status: 500, msg: error.message })
     }
 }
+exports.getOneTicketMessagesAdmin = async (req, res) => {
+    try {
+        const { id } = req.params
+        if (!id) return res.json({ status: 404, msg: 'Ticket ID missing' })
+        const user = req.user
+        const findTicketMessages = await Ticket.findOne({
+            where: { id, adminid: user },
+            include: [
+                {
+                    model: Messages, as: 'ticketmessages',
+                },
+                {
+                    model: User, as: 'usertickets',
+                    attributes: { exclude: TicketExcludes }
+                }
+            ]
+        })
+        if (!findTicketMessages) return res.json({ status: 404, msg: 'Ticket not found' })
+        return res.json({ status: 200, msg: 'Ticket messages fetched successfully', data: findTicketMessages })
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message })
+    }
+}
 
 exports.getAllActiveTickets = async (req, res) => {
     try {
@@ -120,7 +143,14 @@ exports.createMessageAdmin = async (req, res) => {
         })
 
         findTicketId.adminid = findreceiver.id
+        findTicketId.joined = 'true'
         await findTicketId.save()
+
+        await Notify.create({
+            type: 'Ticket Notice',
+            message: `Hi, an admin has joined your ticket with the ID of ${findTicketId.id}. Kindly goto to tickets section under active tickets to view more details.`,
+            user: findsender.id
+        })
 
         return res.json({ status: 200, msg: 'message sent' })
     } catch (error) {
@@ -156,11 +186,32 @@ exports.fetchAdmin = async (req, res) => {
         if (!id) return res.json({ status: 404, msg: "ID is missing" })
         const findTicket = await Ticket.findOne({ where: { id } })
         if (!findTicket) return res.json({ status: 404, msg: "Ticket ID not found" })
-        const findAdmin = await User.findOne({ where: { id: findTicket.adminid },
-       attributes:{exclude:TicketExcludes}
+        const findAdmin = await User.findOne({
+            where: { id: findTicket.adminid },
+            attributes: { exclude: TicketExcludes }
         })
         if (!findAdmin) return res.json({ status: 404, msg: "Admin not found" })
         return res.json({ status: 200, msg: 'admin fetch success', data: findAdmin })
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message })
+    }
+}
+
+exports.closeTicket = async (req, res) => {
+    try {
+        const { id } = req.params
+        if (!id) return res.json({ status: 404, msg: "ID is missing" })
+        const findTicket = await Ticket.findOne({ where: { id } })
+        if (!findTicket) return res.json({ status: 404, msg: "Ticket ID not found" })
+        findTicket.status = 'closed'
+        await findTicket.save()
+
+        await Notify.create({
+            type: 'Ticket Closed',
+            message: `Hi, your ticket with the ID of ${findTicket.id} has been closed by the admin. always reach out to us via tickets if you encounter any issues.`,
+            user: findTicket.userid
+        })
+        return res.json({ status: 200, msg: "ticket closed successfully" })
     } catch (error) {
         return res.json({ status: 500, msg: error.message })
     }

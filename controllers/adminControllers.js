@@ -17,6 +17,8 @@ const Verification = require('../models').verifications
 const NewsLetter = require('../models').newsletters
 const Contact = require('../models').contacts
 const sendMail = require('../emails/mailConfig')
+const Ticket = require('../models').tickets
+
 
 
 
@@ -602,6 +604,58 @@ exports.sendPaymentOtp = async (req, res) => {
         })
 
         res.json({ status: 200, msg: 'OTP resent successfuly' })
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message });
+    }
+}
+
+// tickets and kyc
+
+
+exports.getAllActiveTickets = async (req, res) => {
+    try {
+        const findAllActive = await Ticket.findAll({ where: { status: 'active' },
+        
+            include:[
+                {
+                    model: User, as :"usertickets"
+                }
+            ]
+        })
+        if (!findAllActive) return res.json({ status: 404, msg: "Tickets not found" })
+        return res.json({ status: 200, msg: 'fetch success', data: findAllActive })
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message });
+    }
+}
+exports.getAllClosedTickets = async (req, res) => {
+    try {
+        const findAllClosed = await Ticket.findAll({ where: { status: 'closed' },
+            include:[
+                {
+                    model: User, as :"usertickets"
+                }
+            ]
+        })
+        if (!findAllClosed) return res.json({ status: 404, msg: "Tickets not found" })
+        return res.json({ status: 200, msg: 'fetch success', data: findAllClosed })
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message });
+    }
+}
+
+exports.getAllUserKYCS = async (req,res) =>{
+    try {
+        const findAllKycs = await KYC.findAll({
+            include:[
+                {model: User , as: 'userkycs',
+                    exclude:{exclude:Excludes}
+                },
+            
+            ]
+        })
+        if (!findAllKycs) return res.json({ status: 404, msg: "Tickets not found" })
+            return res.json({ status: 200, msg: 'fetch success', data: findAllKycs })
     } catch (error) {
         return res.json({ status: 500, msg: error.message });
     }
