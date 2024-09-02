@@ -1,12 +1,12 @@
 const { adminPrivacy } = require("../auth/UserAuth")
-const { getAllUsers, getAllDeposits, getPaymentProof, getAllPlans, getAllTrans, getUserBanks, getUserCards, CreateUser, ValidateDeposits, InitiateDeposits, FindUserEmail, InitiateWithdraw, AlterTransaDate, addAdminBank, unhideBank, getAdminBanks, createVerification,  getAllTransfers, DeclineDeposits, getSettledDeposits, removeAdminBank, getAllEmailSubs, getAllContacts, getAllVerifications, sendPaymentOtp, confirmTransfer, getSingleTransfer, getAllActiveTickets, getAllClosedTickets, getAllUserKYCS } = require("../controllers/adminControllers")
+const { getAllUsers, getAllDeposits, getPaymentProof, getAllPlans, getAllTrans, getUserBanks, getUserCards, CreateUser, ValidateDeposits, InitiateDeposits, FindUserEmail, InitiateWithdraw, AlterTransaDate, addAdminBank, unhideBank, getAdminBanks, createVerification,  getAllTransfers, DeclineDeposits, getSettledDeposits, removeAdminBank, getAllEmailSubs, getAllContacts, getAllVerifications, sendPaymentOtp, confirmTransfer, getSingleTransfer, getAllActiveTickets, getAllClosedTickets,getKYCUsers, getAllPendingUserKYCS, getAllVerifiedUserKYCS, getOneUserKyc, ApproveKYC, OverturnKyc } = require("../controllers/adminControllers")
 const { createMessageAdmin, getOneTicketMessagesAdmin, closeTicket } = require("../controllers/ticketsControllers")
 
 const router = require(`express`).Router()
 
 router.get('/all-users', adminPrivacy,getAllUsers)
 router.get('/all-depo', adminPrivacy, getAllDeposits)
-router.get('/all-kyc', adminPrivacy, getAllDeposits)
+router.get('/all-kycs', adminPrivacy, getKYCUsers)
 router.get('/all-proofs', adminPrivacy, getPaymentProof)
 router.get('/all-plans', adminPrivacy, getAllPlans)
 router.get('/all-trans', adminPrivacy, getAllTrans)
@@ -38,8 +38,12 @@ router.post('/confirm-trans', adminPrivacy, confirmTransfer)
 router.get('/all-active-tickets', adminPrivacy, getAllActiveTickets)
 router.post('/admin-response', adminPrivacy, createMessageAdmin)
 router.get('/all-closed-tickets', adminPrivacy, getAllClosedTickets)
-router.get('/all-kycs', adminPrivacy, getAllUserKYCS)
+router.get('/pending-kycs', adminPrivacy, getAllPendingUserKYCS)
+router.get('/verified-kycs', adminPrivacy, getAllVerifiedUserKYCS)
 router.get('/one-ticket-msgs/:id',adminPrivacy,getOneTicketMessagesAdmin)
+router.get('/one-kyc/:id',adminPrivacy,getOneUserKyc)
+router.post('/approve-kyc',adminPrivacy,ApproveKYC)
+router.post('/overturn-kyc',adminPrivacy,OverturnKyc)
 router.post('/close-ticket/:id',adminPrivacy,closeTicket)
 
 

@@ -947,14 +947,12 @@ exports.SubmitKYC = async (req, res) => {
 exports.CreateTransfer = async (req, res) => {
   try {
     const { acc_no, acc_name, bank_name, swift, memo, amount } = req.body
-    if (!acc_name || !acc_no || !bank_name || !amount) return res.json({ status: 404, msg: "Incomplete request" })
+    if (!acc_name || !acc_no || !bank_name || !amount || !memo) return res.json({ status: 404, msg: "Incomplete request" })
     const findUser = await User.findOne({ where: { id: req.user } })
-    if (!findUser) return res.json({ status: 404, msg: 'User not found' })
-    findPendingTransfer = await Transfer.findOne({ where: { userid: findUser.id, status: 'pending' } })
-    if (findPendingTransfer) return res.json({ status: 404, msg: 'Sorry you have a pending transaction, wait for completion before proceeding with new one' })
+    if (!findUser) return res.json({ status: 404, msg: 'Unauthorized access' })
     if (amount > findUser.balance) return res.json({ status: 404, msg: "Insufficient funds" })
     findUser.balance = parseFloat(findUser.balance) - parseFloat(amount)
-    const transfer = await Transfer.create({
+     await Transfer.create({
       acc_name, acc_no, bank_name, swift, amount, memo, userid: findUser.id
     })
     const idRef = otpgenerator.generate(20, { specialChars: false, lowerCaseAlphabets: false })

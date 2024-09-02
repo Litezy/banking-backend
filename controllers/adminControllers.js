@@ -1,4 +1,4 @@
-const { ServerError, Excludes } = require('../utils/utils');
+const { ServerError, Excludes, KycExcludes } = require('../utils/utils');
 
 const User = require('../models').users;
 const Deposit = require('../models').deposits
@@ -62,6 +62,7 @@ exports.getKYCUsers = async (req, res) => {
         const findAdmin = await User.findOne({ where: { id: req.user } })
         if (!findAdmin) return res.json({ status: 404, msg: 'Unauthorized access' })
         const users = await KYC.findAll()
+        if (!users) return res.json({ status: 400, msg: 'no kycs found' })
         return res.json({ status: 200, msg: 'fetched successfully', data: users })
     } catch (error) {
         return res.json({ status: 500, msg: error.message })
@@ -614,11 +615,12 @@ exports.sendPaymentOtp = async (req, res) => {
 
 exports.getAllActiveTickets = async (req, res) => {
     try {
-        const findAllActive = await Ticket.findAll({ where: { status: 'active' },
-        
-            include:[
+        const findAllActive = await Ticket.findAll({
+            where: { status: 'active' },
+
+            include: [
                 {
-                    model: User, as :"usertickets"
+                    model: User, as: "usertickets"
                 }
             ]
         })
@@ -630,10 +632,11 @@ exports.getAllActiveTickets = async (req, res) => {
 }
 exports.getAllClosedTickets = async (req, res) => {
     try {
-        const findAllClosed = await Ticket.findAll({ where: { status: 'closed' },
-            include:[
+        const findAllClosed = await Ticket.findAll({
+            where: { status: 'closed' },
+            include: [
                 {
-                    model: User, as :"usertickets"
+                    model: User, as: "usertickets"
                 }
             ]
         })
@@ -644,20 +647,111 @@ exports.getAllClosedTickets = async (req, res) => {
     }
 }
 
-exports.getAllUserKYCS = async (req,res) =>{
+exports.getAllPendingUserKYCS = async (req, res) => {
     try {
         const findAllKycs = await KYC.findAll({
-            include:[
-                {model: User , as: 'userkycs',
-                    exclude:{exclude:Excludes}
+            where: { status: 'pending' },
+            include: [
+                {
+                    model: User, as: 'userkycs',
+                    attributes: { exclude: Excludes }
                 },
-            
+
             ]
         })
-        if (!findAllKycs) return res.json({ status: 404, msg: "Tickets not found" })
-            return res.json({ status: 200, msg: 'fetch success', data: findAllKycs })
+        if (!findAllKycs) return res.json({ status: 404, msg: "Kyc not found" })
+        return res.json({ status: 200, msg: 'fetch success', data: findAllKycs })
     } catch (error) {
         return res.json({ status: 500, msg: error.message });
+    }
+}
+
+exports.getAllVerifiedUserKYCS = async (req, res) => {
+    try {
+        const findAllKycs = await KYC.findAll({
+            where: { status: 'verified' },
+            include: [
+                {
+                    model: User, as: 'userkycs',
+                    attributes: { exclude: Excludes }
+                },
+
+            ]
+        })
+        if (!findAllKycs) return res.json({ status: 404, msg: "Kyc not found" })
+        return res.json({ status: 200, msg: 'fetch success', data: findAllKycs })
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message });
+    }
+}
+exports.getOneUserKyc = async (req, res) => {
+    try {
+        const {id} = req.params
+        if(!id) return res.json({status:404, msg:'ID is missing'})
+        const findUserKyc = await KYC.findOne({
+            where: { id },
+            include: [
+                {
+                    model: User, 
+                    as: 'userkycs',
+                    attributes: {
+                        exclude: KycExcludes 
+                    }
+                },
+            ]
+        })
+        if (!findUserKyc) return res.json({ status: 404, msg: "Tickets not found" })
+        return res.json({ status: 200, msg: 'fetch success', data: findUserKyc })
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message });
+    }
+}
+
+exports.ApproveKYC = async (req, res) => {
+    try {
+        const { id } = req.body
+        if (!id) return res.json({ status: 404, msg: 'Kyc ID is required' })
+        const findKyc = await KYC.findOne({ where: { id } })
+        if (!findKyc) return res.json({ status: 404, msg: 'Invalid ID' })
+        const findUser = await User.findOne({ where: { id: findKyc.userid } })
+        if (!findUser) return res.json({ status: 404, msg: 'ser not found' })
+        findKyc.status = 'verified'
+        findUser.kyc = 'verified'
+        await findUser.save()
+        await findKyc.save()
+        await Notify.create({
+            type: 'KYC Approved',
+            message: `Congratulations, your kyc details were reviewed and approved, Congratulations!!!. `,
+            status: 'unread',
+            notify: findUser.id
+        })
+        return res.json({ status: 200, msg: 'User kyc approved successfully' })
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message })
+    }
+}
+
+exports.OverturnKyc = async (req, res) => {
+    try {
+        const { id } = req.body
+        if (!id) return res.json({ status: 404, msg: 'Kyc ID is required' })
+        const findKyc = await KYC.findOne({ where: { id } })
+        if (!findKyc) return res.json({ status: 404, msg: 'Invalid ID' })
+        const findUser = await User.findOne({ where: { id: findKyc.userid } })
+        if (!findUser) return res.json({ status: 404, msg: 'User mot found' })
+        findKyc.status = 'false'
+        findUser.kyc = 'unverified'
+        await findUser.save()
+        await findKyc.destroy({ where: { id } })
+        await Notify.create({
+            type: 'KYC Declined',
+            message: `Sorry, your kyc approval wasn't successful, Kindly apply again. `,
+            status: 'unread',
+            notify: findKyc.userid
+        })
+        return res.json({ status: 200, msg: 'User kyc declined successfully' })
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message })
     }
 }
 

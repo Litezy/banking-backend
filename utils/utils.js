@@ -21,6 +21,21 @@ exports.Excludes = [
     "createdAt",
     "updatedAt",
 ]
+exports.KycExcludes = [
+    "dial_code",
+    "password",
+    "reset_code",
+    "status",
+    "pin",
+    "refid",
+    "upline",
+    "verified",
+    "suspended",
+    "lastlogin",
+    "account_number",
+    "createdAt",
+    "updatedAt",
+]
 exports.TicketExcludes = [
     "dial_code",
     "password",
