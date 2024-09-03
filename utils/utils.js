@@ -56,4 +56,4 @@ exports.TicketExcludes = [
     "createdAt",
     "updatedAt",
 ]
-exports.ExcludeNames = ['password', 'role', 'resetcode']
+exports.ExcludeNames = ['password', 'resetcode']
