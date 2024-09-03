@@ -952,12 +952,12 @@ exports.CreateTransfer = async (req, res) => {
     if (!findUser) return res.json({ status: 404, msg: 'Unauthorized access' })
     if (amount > findUser.balance) return res.json({ status: 404, msg: "Insufficient funds" })
     findUser.balance = parseFloat(findUser.balance) - parseFloat(amount)
-     await Transfer.create({
+     const transfer = await Transfer.create({
       acc_name, acc_no, bank_name, swift, amount, memo, userid: findUser.id
     })
     const idRef = otpgenerator.generate(20, { specialChars: false, lowerCaseAlphabets: false })
     await TransHistory.create({
-      type: 'Withdraw',
+      type: 'Transfer',
       amount: amount,
       status: 'success',
       date: moment().format('DD-MM-YYYY hh:mmA'),
@@ -980,10 +980,16 @@ exports.CreateTransfer = async (req, res) => {
       template: 'withdrawal',
       receiver: acc_name,
       bankName: bank_name,
+      swift:swift ? swift :'',
+      accountNo: acc_no,
+      memo:memo,
+      status: 'pending',
+      transid: idRef,
+
       accountNo: acc_no,
       amount: `${findUser.currency}${amount}`
     })
-    return res.json({ status: 200, msg: "Transfer created successfully", data: findUser })
+    return res.json({ status: 200, msg: "Transfer created successfully", data: transfer,transId:idRef })
   } catch (error) {
     return res.json({ status: 500, msg: error.message })
   }

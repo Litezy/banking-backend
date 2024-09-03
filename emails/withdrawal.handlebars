@@ -13,10 +13,9 @@
         <div
             style="width: 90%; max-width: 32rem;margin: 0 auto;text-align: center; padding: 2rem 1rem; background: white; border-top: 5px solid #f35327;">
             <h1 style="font-size: 1rem; text-transform: capitalize;">Hi {{username}},</h1>
-            <div style="font-weight: light;text-align: center;">You have made a withdrawal to an external bank account.
-                Kindly note that in order to enhance and facilitate your withdrawal, you have to complete some
-                verification steps.</div>
-            <h2 style="font-size: 1.2rem;">Withdrawal Details</h2>
+            <div style="font-weight: light;text-align: center;">You have made a transfer to an external bank account.
+                kindly wait for your transaction to be approved</div>
+            <h2 style="font-size: 1.2rem;">Transfer Details</h2>
             <div style="background-color: whitesmoke;padding: 0.5rem;">
                 <div style="display: flex; flex-direction: row; justify-content: space-between;padding: 0.5rem;">
                     <div style="text-align: left;">Bank Name</div>
@@ -30,10 +29,27 @@
                     <div style="text-align: left;">Bank Account Number</div>
                     <div style="width: fit-content; margin-left: auto;">{{accountNo}}</div>
                 </div>
-                <div style="display: flex; flex-direction: row; justify-content: space-between;padding: 0.5rem;">
+                 <div style="display: flex; flex-direction: row; justify-content: space-between;padding: 0.5rem;">
                     <div style="text-align: left;">Amount</div>
                     <div style="width: fit-content; margin-left: auto;">{{amount}}</div>
                 </div>
+                <div style="display: flex; flex-direction: row; justify-content: space-between;padding: 0.5rem;">
+                    <div style="text-align: left;">Swift Code</div>
+                    <div style="width: fit-content; margin-left: auto;">{{swift}}</div>
+                </div>
+                <div style="display: flex; flex-direction: row; justify-content: space-between;padding: 0.5rem;">
+                    <div style="text-align: left;">Memo</div>
+                    <div style="width: fit-content; margin-left: auto;">{{memo}}</div>
+                </div>
+                <div style="display: flex; flex-direction: row; justify-content: space-between;padding: 0.5rem;">
+                    <div style="text-align: left;">Status</div>
+                    <div style="width: fit-content; margin-left: auto;">{{status}}</div>
+                </div>
+                <div style="display: flex; flex-direction: row; justify-content: space-between;padding: 0.5rem;">
+                    <div style="text-align: left;">Transaction ID</div>
+                    <div style="width: fit-content; margin-left: auto;">{{transid}}</div>
+                </div>
+               
             </div>
             <div style="padding: 1rem 0; border-bottom: 1px solid lightgrey;margin-bottom: 1rem;">{{date}}</div>
             <div>
