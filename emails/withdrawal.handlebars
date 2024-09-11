@@ -13,12 +13,11 @@
         <div
             style="width: 90%; max-width: 32rem;margin: 0 auto;text-align: center; padding: 2rem 1rem; background: white; border-top: 5px solid #f35327;">
             <h1 style="font-size: 1rem; text-transform: capitalize;">Hi {{username}},</h1>
-            <div style="font-weight: light;text-align: center;">You have made a transfer to an external bank account.
-                kindly wait for your transaction to be approved</div>
+            <div style="font-weight: light;text-align: center;">{{message}}</div>
             <h2 style="font-size: 1.2rem;">Transfer Details</h2>
             <div style="background-color: whitesmoke;padding: 0.5rem;">
                 <div style="display: flex; flex-direction: row; justify-content: space-between;padding: 0.5rem;">
-                    <div style="text-align: left;">Bank Name</div>
+                    <div style="text-align: left;">Beneficiary Bank</div>
                     <div style="width: fit-content; margin-left: auto; text-transform: capitalize;">{{bankName}}</div>
                 </div>
                 <div style="display: flex; flex-direction: row; justify-content: space-between;padding: 0.5rem;">
@@ -26,7 +25,7 @@
                     <div style="width: fit-content; margin-left: auto; text-transform: capitalize;">{{receiver}}</div>
                 </div>
                 <div style="display: flex; flex-direction: row; justify-content: space-between;padding: 0.5rem;">
-                    <div style="text-align: left;">Bank Account Number</div>
+                    <div style="text-align: left;">Receiver's Account Number</div>
                     <div style="width: fit-content; margin-left: auto;">{{accountNo}}</div>
                 </div>
                  <div style="display: flex; flex-direction: row; justify-content: space-between;padding: 0.5rem;">

@@ -410,6 +410,7 @@ exports.Deposit = async (req, res) => {
     await Deposit.create({
       image: imageName,
       amount: amount,
+      transid:idRef,
       userid: findAcc.id // Ensure you are storing the user ID correctly
     });
 
@@ -718,7 +719,7 @@ exports.getUserSavings = async (req, res) => {
 //user loans and cards
 exports.createCards = async (req, res) => {
   try {
-    const { type, card_no, name, cvv, exp } = req.body
+    const { type, card_no, name, cvv, exp,visa_type } = req.body
     if (!type || !card_no || !name || !cvv || !exp) return res.json({ status: 404, msg: 'Incomplete request' })
     const findAcc = await User.findOne({ where: { id: req.user } })
     if (!findAcc) return res.json({ status: 404, msg: 'Account not found' })
@@ -728,13 +729,15 @@ exports.createCards = async (req, res) => {
       cvv,
       exp,
       type,
+      visa_type,
       userid: findAcc.id
     })
     await Notify.create({
       type: 'Card',
-      message: `You have successfully created${Card.type}. Now you can proceed to withdraw with this card.`,
+      message: `You have successfully created ${type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()} Card. In the future you can use this card to withdraw from your account.`,
       user: findAcc.id
     })
+    
     return res.json({ status: 200, msg: 'Card created successfully', cards })
   } catch (error) {
     ServerError(res, error)
@@ -952,22 +955,23 @@ exports.CreateTransfer = async (req, res) => {
     if (!findUser) return res.json({ status: 404, msg: 'Unauthorized access' })
     if (amount > findUser.balance) return res.json({ status: 404, msg: "Insufficient funds" })
     findUser.balance = parseFloat(findUser.balance) - parseFloat(amount)
-     const transfer = await Transfer.create({
-      acc_name, acc_no, bank_name, swift, amount, memo, userid: findUser.id
-    })
     const idRef = otpgenerator.generate(20, { specialChars: false, lowerCaseAlphabets: false })
+     const transfer = await Transfer.create({
+      acc_name, acc_no, bank_name, swift, amount, memo, userid: findUser.id,transid:idRef
+    })
+    
     await TransHistory.create({
-      type: 'Transfer',
+      type: 'Transfer Out',
       amount: amount,
-      status: 'success',
+      status: 'pending',
       date: moment().format('DD-MM-YYYY hh:mmA'),
-      message: `You have initiated a withdrawal sum of ${findUser.currency}${amount}  to an external bank account, kindly wait for completion.  `,
+      message: `You have initiated a transfer sum of ${findUser.currency}${amount}  to an external bank account, kindly wait for completion.  `,
       transaction_id: idRef,
       userid: findUser.id
     })
     await Notify.create({
       type: 'Transfer',
-      message: `You have successfully initiated a transfer of ${findUser.currency}${amount}. pending approval.`,
+      message: `You have successfully initiated a transfer sum of ${findUser.currency}${amount}, pending approval.`,
       user: findUser.id
     })
     await findUser.save()
@@ -980,12 +984,12 @@ exports.CreateTransfer = async (req, res) => {
       template: 'withdrawal',
       receiver: acc_name,
       bankName: bank_name,
+      message:`You have made a transfer to an external bank account. kindly wait for your transaction to be approved`,
       swift:swift ? swift :'',
       accountNo: acc_no,
       memo:memo,
       status: 'pending',
       transid: idRef,
-
       accountNo: acc_no,
       amount: `${findUser.currency}${amount}`
     })

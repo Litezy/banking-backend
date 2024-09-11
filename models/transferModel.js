@@ -5,10 +5,9 @@ module.exports = (sequelize,DataTypes)=>{
         bank_name:{type:DataTypes.STRING, allowNull:"false"},
         swift:{type:DataTypes.STRING},
         memo:{type:DataTypes.STRING, allowNull:'false'},
+        transid:{type:DataTypes.STRING, allowNull:'false'},
         status:{type:DataTypes.STRING, allowNull:"false", defaultValue:'pending'},
-        new:{type:DataTypes.STRING, allowNull:"false", defaultValue:'true'},
         amount:{type:DataTypes.FLOAT,allowNull:'false'},
-        times:{type:DataTypes.INTEGER, allowNull:'true', defaultValue:0}, 
         userid:{type:DataTypes.INTEGER}, 
     }) 
 }

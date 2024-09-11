@@ -56,6 +56,15 @@ exports.getAllDeposits = async (req, res) => {
         return res.json({ status: 500, msg: error.message })
     }
 }
+exports.getDeposits = async (req, res) => {
+    try {
+        const deposits = await Deposit.findAll()
+        if (!deposits) return res.json({ status: 404, msg: 'deposits not found' })
+        return res.json({ status: 200, msg: 'fetched successfully', data: deposits })
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message })
+    }
+}
 
 exports.getKYCUsers = async (req, res) => {
     try {
@@ -106,7 +115,7 @@ exports.ValidateDeposits = async (req, res) => {
         findUser.balance = parseFloat(findUser.balance) + parseFloat(amount);
         await findPendingDeposit.save()
         await findUser.save()
-        const ID = otpgenerator.generate(20, { specialChars: false, lowerCaseAlphabets: false })
+       
         const trans = await Transhistory.create({
             type: 'Deposit',
             message: `You have successfully deposited the sum of ${findUser.currency}${amount} to your account.`,
@@ -364,7 +373,7 @@ exports.AlterTransaDate = async (req, res) => {
         if (!id || !date) return res.json({ status: 404, msg: 'Incomplete request' })
         const findAdmin = await User.findOne({ where: { id: req.user } })
         if (!findAdmin || !findAdmin.role === 'admin') return res.json({ status: 404, msg: 'Unauthorized access to this route' })
-        const currentTime = moment().format('HH:mm A');
+        const currentTime = moment().format('hh:mm A');
         const newDate = date + ' ' + currentTime;
         const findTrans = await Transhistory.findOne({ where: { id } })
         if (!findTrans) return req.json({ status: 404, msg: "Transaction not found" })
@@ -478,16 +487,18 @@ exports.createVerification = async (req, res) => {
     }
 }
 
-exports.getAllTransfers = async (req, res) => {
+exports.getCompletedTransfers = async (req, res) => {
     try {
         const transfer = await Transfer.findAll({
+            where: { status: 'complete' },
             include: [
                 {
                     model: User, as: 'usertransfers',
-                    attributes: { exclude: Excludes }
+                    attributes: { exclude: Excludes },
                 },
-                { model: Verification, as: 'verifications' },
-            ]
+               
+            ],
+            order:[[`updatedAt` ,'DESC']]
 
         })
         if (!transfer) return res.json({ status: 404, msg: "Transfer not found" })
@@ -537,22 +548,42 @@ exports.confirmTransfer = async (req, res) => {
         const findTransfer = await Transfer.findOne({ where: { id } })
         if (!findTransfer) return res.json({ status: 404, msg: "Transfer ID not found" })
         const findUser = await User.findOne({ where: { id: findTransfer.userid } })
-        if (!findUser) return res.json({ status: 404, msg: 'User not found' })
-        const findVerification = await Verification.findOne({ where: { transferid: findTransfer.id } })
-        if (!findVerification) return res.json({ statu: 404, msg: "Verification not found" })
+        if (!findUser) return res.json({ status: 404, msg: "User  not found" })
+        if (findTransfer.status === 'complete') return res.json({ status: 404, msg: "Transfer already confirmed" })
         findTransfer.status = 'complete'
-        findTransfer.new = 'old'
-        const ID = otpgenerator.generate(20, { specialChars: false, lowerCaseAlphabets: false });
+        await findTransfer.save()
         await Transhistory.create({
-            type: 'Withdraw',
-            message: `Congratulations, your transfer of ${findUser.currency}${findTransfer.amount} to ${findTransfer.acc_name} was successful.`,
+            type: 'Transfer Out',
+            message: `Your transfer of ${findUser.currency}${findTransfer.amount} to ${findTransfer.acc_name} is successful.`,
             status: 'success',
             amount: findTransfer.amount,
             date: moment().format('DD-MM-YYYY hh:mm A'),
             userid: findUser.id,
-            transaction_id: ID
+            transaction_id: findTransfer.transid
         });
-        await findTransfer.save()
+
+        await Notify.create({
+            type: 'Transfer',
+            message: `Your transfer of ${findUser.currency}${findTransfer.amount} is successful.`,
+            user: findUser.id
+        })
+        await sendMail({
+            mailTo: findUser.email,
+            username: findUser.firstname,
+            subject: 'External Bank Transfer',
+            date: moment().format('DD-MM-YYYY hh:mm A'),
+            template: 'withdrawal',
+            receiver: findTransfer.acc_name,
+            bankName: findTransfer.bank_name,
+            swift: findTransfer.swift ? findTransfer.swift : '',
+            accountNo: findTransfer.acc_no,
+            message: `Your transfer to an external bank account is successful, find transfer details below.`,
+            memo: findTransfer.memo,
+            status: 'success',
+            transid: findTransfer.transid,
+            accountNo: findTransfer.acc_no,
+            amount: `${findUser.currency}${findTransfer.amount}`
+        })
         return res.json({ status: 200, msg: 'Transfer successfully completed' })
     } catch (error) {
         return res.json({ status: 500, msg: error.message });
@@ -666,6 +697,7 @@ exports.getAllPendingUserKYCS = async (req, res) => {
     }
 }
 
+
 exports.getAllVerifiedUserKYCS = async (req, res) => {
     try {
         const findAllKycs = await KYC.findAll({
@@ -686,16 +718,16 @@ exports.getAllVerifiedUserKYCS = async (req, res) => {
 }
 exports.getOneUserKyc = async (req, res) => {
     try {
-        const {id} = req.params
-        if(!id) return res.json({status:404, msg:'ID is missing'})
+        const { id } = req.params
+        if (!id) return res.json({ status: 404, msg: 'ID is missing' })
         const findUserKyc = await KYC.findOne({
             where: { id },
             include: [
                 {
-                    model: User, 
+                    model: User,
                     as: 'userkycs',
                     attributes: {
-                        exclude: KycExcludes 
+                        exclude: KycExcludes
                     }
                 },
             ]
@@ -755,4 +787,76 @@ exports.OverturnKyc = async (req, res) => {
     }
 }
 
+exports.getAllPendingReq = async (req, res) => {
+    try {
+        const users = await Transfer.findAll({
+            where: { status: 'pending' },
+
+            include: [
+                {
+                    model: User, as: 'usertransfers',
+                    attributes: { exclude: Excludes }
+                },
+            ],
+            order:[[`createdAt` ,'DESC']]
+
+        })
+        const pendingamts = await Transfer.sum('amount', { where: { status: 'pending' } })
+        if (!users) return res.json({ status: 404, msg: 'Transfers not found' })
+        if (!pendingamts) return res.json({ status: 404, msg: 'Transfers amounts not found' })
+        return res.json({ status: 200, msg: 'fetch success', data: users, amount: pendingamts })
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message })
+    }
+}
+exports.getAllTerminatedSavings = async (req, res) => {
+    try {
+        const users = await Savings.findAll({ where: { status: 'terminated' } })
+        if (!users) return res.json({ status: 404, msg: 'terminated savings not found' })
+        const amount = await Savings.sum('current', { where: { status: 'terminated' } })
+        if (!amount) return res.json({ status: 404, msg: 'terminated savings amounts not found' })
+        return res.json({ status: 200, msg: 'fetch success', data: users, amount })
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message })
+    }
+}
+exports.getAllCompletedSavings = async (req, res) => {
+    try {
+        const users = await Savings.findAll({ where: { status: 'complete' } })
+        if (!users) return res.json({ status: 404, msg: 'completed savings not found' })
+        const amount = await Savings.sum('current', { where: { status: 'complete' } })
+        if (!amount) return res.json({ status: 404, msg: 'completed savings amounts not found' })
+        return res.json({ status: 200, msg: 'fetch success', data: users, amount })
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message })
+    }
+}
+
+exports.getAllContacts = async (req, res) => {
+    try {
+        const contacts = await Contact.findAll()
+        if (!contacts) return res.json({ status: 404, msg: 'contacts not found' })
+        return res.json({ status: 200, msg: 'fetched successfully', data: contacts })
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message })
+    }
+}
+exports.getAllTickets = async (req, res) => {
+    try {
+        const tickets = await Ticket.findAll()
+        if (!tickets) return res.json({ status: 404, msg: 'tickets not found' })
+        return res.json({ status: 200, msg: 'fetched successfully', data: tickets })
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message })
+    }
+}
+exports.getAllApprovedKycs = async (req, res) => {
+    try {
+        const kycs = await KYC.findAll({ where: { status: 'verified' } })
+        if (!kycs) return res.json({ status: 404, msg: 'verified kycs not found' })
+        return res.json({ status: 200, msg: 'fetched successfully', data: kycs })
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message })
+    }
+}
 

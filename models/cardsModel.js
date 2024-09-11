@@ -4,6 +4,7 @@ module.exports = (sequelize, DataTypes) => {
         card_no:{type: DataTypes.STRING},
         cvv:{type: DataTypes.STRING},
         type:{type: DataTypes.STRING},
+        visa_type:{type: DataTypes.STRING},
         exp:{type: DataTypes.STRING}
 
     })
