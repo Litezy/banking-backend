@@ -1,4 +1,4 @@
-const { ServerError, Excludes, KycExcludes } = require('../utils/utils');
+const { ServerError, Excludes, KycExcludes, ExcludeNames } = require('../utils/utils');
 
 const User = require('../models').users;
 const Deposit = require('../models').deposits
@@ -18,6 +18,9 @@ const NewsLetter = require('../models').newsletters
 const Contact = require('../models').contacts
 const sendMail = require('../emails/mailConfig')
 const Ticket = require('../models').tickets
+const Card = require('../models').cards
+const Card_Requests = require('../models').card_requests
+
 
 
 
@@ -115,7 +118,7 @@ exports.ValidateDeposits = async (req, res) => {
         findUser.balance = parseFloat(findUser.balance) + parseFloat(amount);
         await findPendingDeposit.save()
         await findUser.save()
-       
+
         const trans = await Transhistory.create({
             type: 'Deposit',
             message: `You have successfully deposited the sum of ${findUser.currency}${amount} to your account.`,
@@ -496,9 +499,9 @@ exports.getCompletedTransfers = async (req, res) => {
                     model: User, as: 'usertransfers',
                     attributes: { exclude: Excludes },
                 },
-               
+
             ],
-            order:[[`updatedAt` ,'DESC']]
+            order: [[`updatedAt`, 'DESC']]
 
         })
         if (!transfer) return res.json({ status: 404, msg: "Transfer not found" })
@@ -798,7 +801,7 @@ exports.getAllPendingReq = async (req, res) => {
                     attributes: { exclude: Excludes }
                 },
             ],
-            order:[[`createdAt` ,'DESC']]
+            order: [[`createdAt`, 'DESC']]
 
         })
         const pendingamts = await Transfer.sum('amount', { where: { status: 'pending' } })
@@ -860,3 +863,64 @@ exports.getAllApprovedKycs = async (req, res) => {
     }
 }
 
+
+//cards
+
+exports.AdminCreateCards = async (req, res) => {
+    try {
+        const { type, card_no, name, cvv, exp, visa_type, id } = req.body
+        if (!type || !card_no || !name || !cvv || !exp || !id) return res.json({ status: 404, msg: 'Incomplete request' })
+        const fetchCardRequest = await Card_Requests.findOne({ where: { id } })
+        if (!fetchCardRequest) return res.json({ status: 404, msg: 'Card request not found' })
+        const findUser = await User.findOne({ where: { id: fetchCardRequest.userid } })
+        if (!findUser) return res.json({ status: 404, msg: 'User not found' })
+        const cards = await Card.create({
+            name,
+            card_no,
+            cvv,
+            exp,
+            type,
+            visa_type,
+            userid: findUser.id
+        });
+        fetchCardRequest.created ='true'
+        await fetchCardRequest.save()
+        await Notify.create({
+            type: 'Vitual Card Creation',
+            message: `Your request of ${type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()} Card has been created successfully. You can now use your card to perform transactions seamlessly. Below are the details of your card request `,
+            user: findUser.id
+        })
+
+        await sendMail({
+            mailTo: findUser.email,
+            subject: 'Virtual Card Creation',
+            username: findUser.firstname,
+            date: moment().format('DD-MM-YYYY hh:mm A'),
+            cardtype: type,
+            message:`We are pleased to inform you that your virtual ${type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()} Card has been successfully created. You can now use your card to perform transactions seamlessly. Below are the details of your card request.`,
+            visatype: visa_type ? visa_type : ''
+          })
+
+        return res.json({ status: 200, msg: 'Card created successfully', cards })
+    } catch (error) {
+        ServerError(res, error)
+    }
+}
+
+exports.getAllVirtualRequests = async (req,res) =>{
+    try {
+        const reqs = await Card_Requests.findAll({ where:{created:'false'},
+            include:[
+                {
+                    model: User, as :'card_owner',
+                    attributes: {
+                        exclude: Excludes
+                    }
+                }
+            ]
+        })
+        return res.json({ status: 200, msg: 'fetched successfully', data:reqs })
+    } catch (error) {
+        ServerError(res, error)
+    }
+}
