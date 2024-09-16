@@ -1,6 +1,6 @@
 const { userMiddleware } = require('../auth/UserAuth')
 const { createTicket, getOneTicketMessages, getAllPendingTickets, getAllActiveTickets, getAllClosedTickets, sendMessage, fetchAdmin } = require('../controllers/ticketsControllers')
-const { SignupUserAccount, GetUserProfile, LoginAcc, logOutUser, GetAllSavings, CreateSavings, getAllCurrentSavings, requestLoan, ChangeProfileImage, EditProfile, TopUp, getTransHistory, DeleteGoal, createCards, getAllUserCards, getUserNotifications, MarkReadNotifications, findUserAccount, ChangeUserPassword, ChangeAccountEmail, RequestEmailOtp, MarkAllAsRead, getBankList, addBank, Deposit, CreateTransfer, getTransfers, getVerifications, getAdminBanks, SubmitTransferProof, getAllTransfers, getUserSavings, contactUs, NewsLetterSubscription, verifyOtp, VerifyEmail, ResendOtp, Testmail, VerifyPasswordChange, WithdrawGoal, getCompletedSavings, fetchP2PUser, creditP2P, SubmitKYC } = require('../controllers/userController')
+const { SignupUserAccount, GetUserProfile, LoginAcc, logOutUser, GetAllSavings, CreateSavings, getAllCurrentSavings, requestLoan, ChangeProfileImage, EditProfile, TopUp, getTransHistory, DeleteGoal, createCards, getAllUserCards, getUserNotifications, MarkReadNotifications, findUserAccount, ChangeUserPassword, ChangeAccountEmail, RequestEmailOtp, MarkAllAsRead, getBankList, addBank, Deposit, CreateTransfer, getTransfers, getVerifications, getAdminBanks, SubmitTransferProof, getAllTransfers, getUserSavings, contactUs, NewsLetterSubscription, verifyOtp, VerifyEmail, ResendOtp, Testmail, VerifyPasswordChange, WithdrawGoal, getCompletedSavings, fetchP2PUser, creditP2P, SubmitKYC, requestCard, getCardRequests } = require('../controllers/userController')
 
 const router = require('express').Router()
 
@@ -37,8 +37,9 @@ router.post('/withdraw-savings', userMiddleware, WithdrawGoal)
 router.get('/save-history', userMiddleware, getCompletedSavings)
 
 //loans/cards/banks/transfers
-router.post('/create-card', userMiddleware, createCards)
+router.post('/request-card', userMiddleware, requestCard)
 router.get('/user-cards', userMiddleware, getAllUserCards)
+router.get('/card-requests', userMiddleware, getCardRequests)
 router.get('/find-p2p/:tag', userMiddleware, fetchP2PUser)
 router.post('/credit-p2p', userMiddleware, creditP2P)
 router.get('/request-loan', userMiddleware, requestLoan)
