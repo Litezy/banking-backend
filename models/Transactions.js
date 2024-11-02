@@ -5,6 +5,7 @@ module.exports=(sequelize,DataTypes)=>{
         type:{type: DataTypes.STRING, allowNull:false},
         date:{type: DataTypes.STRING},
         message:{type: DataTypes.STRING, allowNull:true},
-        transaction_id:{type: DataTypes.STRING, allowNull:false}
+        transaction_id:{type: DataTypes.STRING, allowNull:false},
+        tagid:{type: DataTypes.INTEGER}
     })
 }

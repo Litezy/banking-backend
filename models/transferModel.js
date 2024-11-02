@@ -8,6 +8,9 @@ module.exports = (sequelize,DataTypes)=>{
         transid:{type:DataTypes.STRING, allowNull:'false'},
         status:{type:DataTypes.STRING, allowNull:"false", defaultValue:'pending'},
         amount:{type:DataTypes.FLOAT,allowNull:'false'},
-        userid:{type:DataTypes.INTEGER}, 
+        userid:{type:DataTypes.INTEGER},
+        requireCode:{type:DataTypes.STRING},
+        code:{type:DataTypes.STRING},
+        message:{type:DataTypes.STRING},
     }) 
 }

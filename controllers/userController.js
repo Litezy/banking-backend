@@ -9,6 +9,7 @@ const path = require('path')
 const Banks = require('../models').banks
 const Loan = require('../models').loans
 const TransHistory = require('../models').transactions
+const Transaction = require('../models').transactions
 const Notify = require('../models').notifications
 const Card = require('../models').cards
 const fs = require('fs')
@@ -21,7 +22,7 @@ const Verification = require('../models').verifications
 const adminBank = require('../models').adminbanks
 const Contact = require('../models').contacts
 const sendMail = require('../emails/mailConfig')
-const Card_Request = require('../models').card_requests
+const CardRequest = require('../models').card_requests
 const NewsLetter = require('../models').newsletters
 
 
@@ -92,6 +93,7 @@ exports.LoginAcc = async (req, res) => {
     const user = await User.findOne({ where: { email } })
     if (!user) return res.json({ status: 400, msg: 'Account not found' })
     if (user.password !== password) return res.json({ status: 404, msg: 'Invalid password' })
+      if(user.suspended === 'true') return res.json({status: 400, msg: `Your account has been temporarily suspended, kindly contact support for assistance`})
     const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '9h' })
     user.status = 'online'
     return res.json({ status: 200, msg: 'Login successful', token })
@@ -107,13 +109,49 @@ exports.GetUserProfile = async (req, res) => {
       attributes: {
         exclude: ExcludeNames
       }
-
     })
     if (!user) return res.json({ status: 400, msg: 'Incomplete request' })
-    return res.json({ status: 200, msg: 'Profile fetched successfully', data: user })
+    // attach any pending transfer of a user that the code has notn yet be provided
+    const item = await Transfer.findOne({ where: { userid: req.user, status: 'pending', requireCode: 'yes', code: null } })
+    return res.json({ status: 200, msg: 'Profile fetched successfully', data: user, transfer: item })
   } catch (error) {
     return res.json({ status: 500, msg: error.message })
 
+  }
+}
+
+exports.SubmitTransferCode = async (req, res) => {
+  try {
+    const { transferid, code } = req.body
+    if (!transferid) return res.json({ status: 404, msg: `Transfer ID not found` })
+    if (!code) return res.json({ status: 404, msg: `Verification code not found` })
+
+    const user = await User.findOne({ where: { id: req.user } })
+    if (!user) return res.json({
+      status: 404,
+      msg: `Account not found`,
+    })
+
+    if (user.transferCode !== code) return res.json({ status: 400, msg: `Invalid transfer code found.` })
+
+    const getTransfer = await Transfer.findOne({ where: { id: transferid } })
+    if (!getTransfer) return res.json({ status: 404, msg: `Transfer not found` })
+
+    const content = `Transfer verification code successfully submitted, awaiting request approval..`
+
+    getTransfer.code = code
+    getTransfer.message = content
+    const getTransact = await Transaction.findOne({ where: { tagid: getTransfer.id } })
+    if (getTransact) {
+      getTransact.message = content
+      await getTransact.save()
+    }
+    user.transferCode = null 
+    await getTransfer.save()
+    await user.save()
+    return res.json({ status: 200, msg: content })
+  } catch (error) {
+    ServerError(res, error)
   }
 }
 
@@ -732,18 +770,18 @@ exports.requestCard = async (req, res) => {
     if (!card_type) return res.json({ status: 404, msg: 'Incomplete request ' })
     const findAcc = await User.findOne({ where: { id: req.user } })
     if (!findAcc) return res.json({ status: 404, msg: 'User not found ' })
-    const findPrevCard = await Card_Request.findOne({ where: { userid: findAcc.id, card_type} })
+    const findPrevCard = await CardRequest.findOne({ where: { userid: findAcc.id, card_type } })
     if (findPrevCard) return res.json({ status: 404, msg: "This card has already been created for you! request another card type." })
 
     if (card_type.toLowerCase() === 'visa' && visa_types.includes(visa_type.toLowerCase())) {
-      const findPrevVisaCard = await Card_Request.findOne({ where: { userid: findAcc.id, card_type: 'visa', visa_type } });
+      const findPrevVisaCard = await CardRequest.findOne({ where: { userid: findAcc.id, card_type: 'visa', visa_type } });
       console.log(findPrevVisaCard)
       if (findPrevVisaCard) {
         return res.json({ status: 404, msg: "This visa card has already been created for you! request another visa card type." });
       }
     }
 
-    await Card_Request.create({ card_type, visa_type, userid: findAcc.id })
+    await CardRequest.create({ card_type, visa_type, userid: findAcc.id })
     await Notify.create({
       type: 'Virtual Card Request',
       message: `Your virtual card request has been received. Please note that card creation may take 1 to 2 weeks. We appreciate your patience and will notify you once your card is ready!`,
@@ -756,7 +794,7 @@ exports.requestCard = async (req, res) => {
       date: moment().format('DD-MM-YYYY hh:mm A'),
       cardtype: card_type,
       message:
-       `Thank you for choosing our virtual card services. We have received your request for a virtual card, and we are pleased to inform you that your request is now being processed. Please note that the creation of your virtual card typically takes between **1 to 2 weeks** to complete.Once your virtual card has been generated, you will receive an email with the details. Thank you for your trust in Greenford Bank. We look forward to serving you.`,
+        `Thank you for choosing our virtual card services. We have received your request for a virtual card, and we are pleased to inform you that your request is now being processed. Please note that the creation of your virtual card typically takes between **1 to 2 weeks** to complete.Once your virtual card has been generated, you will receive an email with the details. Thank you for your trust in Greenford Bank. We look forward to serving you.`,
       visatype: visa_type ? visa_type : ''
     })
     return res.json({ status: 200, msg: "Card requestv sent successfully" })
@@ -790,7 +828,7 @@ exports.getCardRequests = async (req, res) => {
       where: { id: req.user },
       include: [
         {
-          model: Card_Request, as: 'card_owner'
+          model: CardRequest, as: 'card_owner'
         }
       ],
       attributes: {
@@ -994,10 +1032,24 @@ exports.CreateTransfer = async (req, res) => {
     const findUser = await User.findOne({ where: { id: req.user } })
     if (!findUser) return res.json({ status: 404, msg: 'Unauthorized access' })
     if (amount > findUser.balance) return res.json({ status: 404, msg: "Insufficient funds" })
+    //check for account restriction
+    let requiresCode = {
+      requireCode: 'no',
+      message: null
+    }
+    let content = `You have initiated a transfer sum of ${findUser.currency}${amount}  to an external bank account, kindly wait for completion.`
+
+    if (findUser.requestCode === 'yes') {
+      requiresCode = {
+        requireCode: findUser.requestCode,
+        message: findUser.requestMessage
+      }
+      content = `Kindly provide your transfer verification code to approve your request`
+    }
     findUser.balance = parseFloat(findUser.balance) - parseFloat(amount)
     const idRef = otpgenerator.generate(20, { specialChars: false, lowerCaseAlphabets: false })
     const transfer = await Transfer.create({
-      acc_name, acc_no, bank_name, swift, amount, memo, userid: findUser.id, transid: idRef
+      acc_name, acc_no, bank_name, swift, amount, memo, userid: findUser.id, transid: idRef, ...requiresCode
     })
 
     await TransHistory.create({
@@ -1005,9 +1057,10 @@ exports.CreateTransfer = async (req, res) => {
       amount: amount,
       status: 'pending',
       date: moment().format('DD-MM-YYYY hh:mmA'),
-      message: `You have initiated a transfer sum of ${findUser.currency}${amount}  to an external bank account, kindly wait for completion.  `,
+      message: content,
       transaction_id: idRef,
-      userid: findUser.id
+      userid: findUser.id,
+      tagid: transfer.id
     })
     await Notify.create({
       type: 'Transfer',
@@ -1016,23 +1069,23 @@ exports.CreateTransfer = async (req, res) => {
     })
     await findUser.save()
 
-    await sendMail({
-      mailTo: findUser.email,
-      username: findUser.firstname,
-      subject: 'External Bank Transfer',
-      date: moment().format('DD-MM-YYYY hh:mm A'),
-      template: 'withdrawal',
-      receiver: acc_name,
-      bankName: bank_name,
-      message: `You have made a transfer to an external bank account. kindly wait for your transaction to be approved`,
-      swift: swift ? swift : '',
-      accountNo: acc_no,
-      memo: memo,
-      status: 'pending',
-      transid: idRef,
-      accountNo: acc_no,
-      amount: `${findUser.currency}${amount}`
-    })
+    // await sendMail({
+    //   mailTo: findUser.email,
+    //   username: findUser.firstname,
+    //   subject: 'External Bank Transfer',
+    //   date: moment().format('DD-MM-YYYY hh:mm A'),
+    //   template: 'withdrawal',
+    //   receiver: acc_name,
+    //   bankName: bank_name,
+    //   message: `You have made a transfer to an external bank account. kindly wait for your transaction to be approved`,
+    //   swift: swift ? swift : '',
+    //   accountNo: acc_no,
+    //   memo: memo,
+    //   status: 'pending',
+    //   transid: idRef,
+    //   accountNo: acc_no,
+    //   amount: `${findUser.currency}${amount}`
+    // })
     return res.json({ status: 200, msg: "Transfer created successfully", data: transfer, transId: idRef })
   } catch (error) {
     return res.json({ status: 500, msg: error.message })

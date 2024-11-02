@@ -23,5 +23,9 @@ module.exports = (sequelize, DataTypes) => {
         account_number: {type: DataTypes.STRING, allowNull: true},
         country: {type: DataTypes.STRING, allowNull: true},
         state: {type: DataTypes.STRING, allowNull: true},
+        requestCode: {type: DataTypes.STRING, allowNull: true},
+        transferCode: {type: DataTypes.STRING, allowNull: true},
+        amount: {type: DataTypes.FLOAT, allowNull: true},
+        requestMessage: {type: DataTypes.STRING, allowNull: true},
     })
 }

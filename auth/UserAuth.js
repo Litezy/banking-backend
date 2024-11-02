@@ -10,6 +10,7 @@ exports.userMiddleware = async (req, res, next) => {
         if (!verified) return res.json({ status: 400, msg: 'Invalid token' })
         const findUser = await User.findOne({ where: { id: verified.id } })
         if (!findUser) return res.json({ status: 400, msg: 'Access denied' })
+        if (findUser.suspended === 'true') return res.json({ status: 400, msg: `Your account has been temporarily suspended, kindly contact support for assistance` })
         req.user = findUser.id
         next()
     } catch (error) {
@@ -20,11 +21,12 @@ exports.adminPrivacy = async (req, res, next) => {
     try {
         const tokenHeader = req.headers.authorization
         if (!tokenHeader) return res.json({ status: 400, msg: 'forbidden' })
-        const token = tokenHeader.split(' ')[1] 
+        const token = tokenHeader.split(' ')[1]
         const verified = jwt.verify(token, process.env.JWT_SECRET)
         if (!verified) return res.json({ status: 400, msg: 'Invalid token' })
         const findUser = await User.findOne({ where: { id: verified.id } })
         if (!findUser) return res.json({ status: 400, msg: 'Access denied' })
+        if (findUser.suspended === 'true') return res.json({ status: 400, msg: `Your account has been temporarily suspended, kindly contact support for assistance` })
         if (findUser.role !== 'admin') return res.json({ status: 400, msg: 'This route is only for Admins, GTFO' })
         req.user = findUser.id
         next()

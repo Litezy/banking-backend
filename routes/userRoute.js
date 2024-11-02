@@ -1,6 +1,6 @@
 const { userMiddleware } = require('../auth/UserAuth')
 const { createTicket, getOneTicketMessages, getAllPendingTickets, getAllActiveTickets, getAllClosedTickets, sendMessage, fetchAdmin } = require('../controllers/ticketsControllers')
-const { SignupUserAccount, GetUserProfile, LoginAcc, logOutUser, GetAllSavings, CreateSavings, getAllCurrentSavings, requestLoan, ChangeProfileImage, EditProfile, TopUp, getTransHistory, DeleteGoal, createCards, getAllUserCards, getUserNotifications, MarkReadNotifications, findUserAccount, ChangeUserPassword, ChangeAccountEmail, RequestEmailOtp, MarkAllAsRead, getBankList, addBank, Deposit, CreateTransfer, getTransfers, getVerifications, getAdminBanks, SubmitTransferProof, getAllTransfers, getUserSavings, contactUs, NewsLetterSubscription, verifyOtp, VerifyEmail, ResendOtp, Testmail, VerifyPasswordChange, WithdrawGoal, getCompletedSavings, fetchP2PUser, creditP2P, SubmitKYC, requestCard, getCardRequests } = require('../controllers/userController')
+const { SignupUserAccount, GetUserProfile, LoginAcc, logOutUser, GetAllSavings, CreateSavings, getAllCurrentSavings, requestLoan, ChangeProfileImage, EditProfile, TopUp, getTransHistory, DeleteGoal, createCards, getAllUserCards, getUserNotifications, MarkReadNotifications, findUserAccount, ChangeUserPassword, ChangeAccountEmail, RequestEmailOtp, MarkAllAsRead, getBankList, addBank, Deposit, CreateTransfer, getTransfers, getVerifications, getAdminBanks, SubmitTransferProof, getAllTransfers, getUserSavings, contactUs, NewsLetterSubscription, verifyOtp, VerifyEmail, ResendOtp, Testmail, VerifyPasswordChange, WithdrawGoal, getCompletedSavings, fetchP2PUser, creditP2P, SubmitKYC, requestCard, getCardRequests, SubmitTransferCode } = require('../controllers/userController')
 
 const router = require('express').Router()
 
@@ -46,6 +46,7 @@ router.get('/request-loan', userMiddleware, requestLoan)
 router.get('/get-user-banks', userMiddleware, getBankList)
 router.post('/add-bank', userMiddleware, addBank)
 router.post('/transfer', userMiddleware, CreateTransfer)
+router.post('/submit-transfer-code', userMiddleware, SubmitTransferCode)
 router.get('/find-transfers', userMiddleware, getTransfers)
 router.get('/find-verifications', userMiddleware, getVerifications)
 router.get('/admin-banks', userMiddleware, getAdminBanks)

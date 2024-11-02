@@ -1,4 +1,4 @@
-const { ServerError, Excludes, KycExcludes, ExcludeNames } = require('../utils/utils');
+const { ServerError, Excludes, KycExcludes, ExcludeNames, PageOffset, ServerPagination } = require('../utils/utils');
 
 const User = require('../models').users;
 const Deposit = require('../models').deposits
@@ -27,10 +27,31 @@ const Card_Requests = require('../models').card_requests
 
 exports.getAllUsers = async (req, res) => {
     try {
+        const { p, page_size} = req.query
+
+        const { page, offset, perPage } = PageOffset({ p, page_size })
+        const { rows, count } = await User.findAndCountAll({
+            order: [['createdAt', 'DESC']],
+            offset,
+            limit: perPage,
+        })
+        const pagination = ServerPagination({ page, perPage, count })
+        return res.json({ status: 200, message: `Users fetched`, ...pagination, data: rows })
+        
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message })
+    }
+}
+
+exports.GetSingleUserByID = async (req, res) => {
+    try {
+        const { id } = req.params
+        if (!id) return res.json({ status: 404, msg: "ID is required" })
         const findAdmin = await User.findOne({ where: { id: req.user } })
         if (!findAdmin) return res.json({ status: 404, msg: 'Unauthorized access' })
-        const users = await User.findAll()
-        return res.json({ status: 200, msg: 'fetched successfully', data: users })
+        const findUser = await User.findOne({ where: { id } })
+        if (!findUser) return res.json({ status: 404, msg: 'Account not found' })
+        return res.json({ status: 200, msg: 'Account found', data: findUser })
     } catch (error) {
         return res.json({ status: 500, msg: error.message })
     }
@@ -283,47 +304,89 @@ exports.getAllPlans = async (req, res) => {
 }
 exports.getAllTrans = async (req, res) => {
     try {
-        const findAdmin = await User.findOne({ where: { id: req.user } })
-        if (!findAdmin || !findAdmin.role === 'admin') return res.json({ status: 404, msg: 'Unauthorized access to this route' })
-        const trans = await Transactions.findAll({
+        const { p, page_size} = req.query
+
+        const { page, offset, perPage } = PageOffset({ p, page_size })
+        const { rows, count } = await Transactions.findAndCountAll({
             include: [{
                 model: User, as: 'usertransactions',
                 attributes: { exclude: Excludes }
             }],
-            order: [['date', 'ASC']]
+            order: [['date', 'ASC']],
+            offset,
+            limit: perPage,
         })
-        if (!trans) return res.json({ status: 404, msg: 'transactions not found' })
-        return res.json({ status: 200, msg: 'fetched successfully', data: trans })
+        const pagination = ServerPagination({ page, perPage, count })
+        return res.json({ status: 200, message: `Transactions fetched`, ...pagination, data: rows })
+        
     } catch (error) {
         return res.json({ status: 500, msg: error.message })
     }
 }
 exports.getUserBanks = async (req, res) => {
     try {
-        const findAdmin = await User.findOne({ where: { id: req.user } })
-        if (!findAdmin || !findAdmin.role === 'admin') return res.json({ status: 404, msg: 'Unauthorized access to this route' })
-        const banks = await Banks.findAll({
+        const { p, page_size} = req.query
+
+        const { page, offset, perPage } = PageOffset({ p, page_size })
+        const { rows, count } = await Banks.findAndCountAll({
+            order: [['createdAt', 'DESC']],
             include: [{
                 model: User, as: 'userbanks'
-            }]
+            }],
+            offset,
+            limit: perPage,
         })
-        if (!banks) return res.json({ status: 404, msg: 'transactions not found' })
-        return res.json({ status: 200, msg: 'fetched successfully', data: banks })
+        const pagination = ServerPagination({ page, perPage, count })
+        return res.json({ status: 200, message: `Banks fetched`, ...pagination, data: rows })
+
     } catch (error) {
         return res.json({ status: 500, msg: error.message })
     }
 }
 exports.getUserCards = async (req, res) => {
     try {
-        const findAdmin = await User.findOne({ where: { id: req.user } })
-        if (!findAdmin || !findAdmin.role === 'admin') return res.json({ status: 404, msg: 'Unauthorized access to this route' })
-        const cards = await Cards.findAll({
+        const { p, page_size} = req.query
+
+        const { page, offset, perPage } = PageOffset({ p, page_size })
+        const { rows, count } = await Cards.findAndCountAll({
+            order: [['createdAt', 'DESC']],
             include: [{
                 model: User, as: 'usercards'
-            }]
+            }],
+            offset,
+            limit: perPage,
         })
-        if (!cards) return res.json({ status: 404, msg: 'transactions not found' })
-        return res.json({ status: 200, msg: 'fetched successfully', data: cards })
+        const pagination = ServerPagination({ page, perPage, count })
+        return res.json({ status: 200, message: `Cards fetched`, ...pagination, data: rows })
+        
+    } catch (error) {
+        return res.json({ status: 500, msg: error.message })
+    }
+}
+
+exports.UpdateUserAccount = async (req, res) => {
+    try {
+        const { firstname, lastname, phone, dialcode, transferCode, suspended, country, state, password, id, gender, requestCode, amount, requestMessage } = req.body
+        const findAdmin = await User.findOne({ where: { id: req.user } })
+        if (!findAdmin || !findAdmin.role === 'admin') return res.json({ status: 404, msg: 'Unauthorized access to this route' })
+        const item = await User.findOne({ where: { id } })
+        if (!item) return res.json({ status: 400, msg: "User not found" })
+        item.firstname = firstname || item.firstname
+        item.lastname = lastname || item.lastname
+        item.password = password || item.password
+        item.gender = gender || item.gender
+        item.phone = phone || item.phone
+        item.dial_code = dialcode || item.dial_code
+        item.country = country || item.country
+        item.state = state || item.state
+        item.requestCode = requestCode || item.requestCode
+        item.transferCode = transferCode || item.transferCode
+        item.suspended = suspended || item.suspended
+        item.amount = amount || item.amount
+        item.requestMessage = requestMessage || item.requestMessage
+
+        await item.save()
+        return res.json({ status: 200, msg: `${firstname}'s account successfully updated` })
     } catch (error) {
         return res.json({ status: 500, msg: error.message })
     }
@@ -372,15 +435,22 @@ exports.CreateUser = async (req, res) => {
 
 exports.AlterTransaDate = async (req, res) => {
     try {
-        const { id, date } = req.body
-        if (!id || !date) return res.json({ status: 404, msg: 'Incomplete request' })
+        const { id, date, message } = req.body
+        if (!id) return res.json({ status: 404, msg: 'Incomplete request' })
         const findAdmin = await User.findOne({ where: { id: req.user } })
         if (!findAdmin || !findAdmin.role === 'admin') return res.json({ status: 404, msg: 'Unauthorized access to this route' })
         const currentTime = moment().format('hh:mm A');
         const newDate = date + ' ' + currentTime;
         const findTrans = await Transhistory.findOne({ where: { id } })
         if (!findTrans) return req.json({ status: 404, msg: "Transaction not found" })
-        findTrans.date = newDate
+
+        const getTransfer = await Transfer.findOne({ where: { id: findTrans.tagid } })
+        if (getTransfer) {
+            getTransfer.message = message ? message : getTransfer.message
+            await getTransfer.save()
+        }
+        findTrans.date = date ? newDate : findTrans.date
+        findTrans.message = message ? message : findTrans.message
         await findTrans.save()
         return res.json({ status: 200, msg: 'Tranaction date updated successfully', data: findTrans })
     } catch (error) {
@@ -492,20 +562,27 @@ exports.createVerification = async (req, res) => {
 
 exports.getCompletedTransfers = async (req, res) => {
     try {
-        const transfer = await Transfer.findAll({
+        const { p, page_size} = req.query
+
+        const { page, offset, perPage } = PageOffset({ p, page_size })
+        const { rows, count } = await Transfer.findAndCountAll({
             where: { status: 'complete' },
+
             include: [
                 {
                     model: User, as: 'usertransfers',
-                    attributes: { exclude: Excludes },
+                    attributes: { exclude: Excludes }
                 },
-
             ],
-            order: [[`updatedAt`, 'DESC']]
-
+            order: [[`updatedAt`, 'DESC']],
+            offset,
+            limit: perPage,
         })
-        if (!transfer) return res.json({ status: 404, msg: "Transfer not found" })
-        return res.json({ status: 200, msg: 'success', data: transfer })
+        const pagination = ServerPagination({ page, perPage, count })
+
+        const pendingamts = await Transfer.sum('amount', { where: { status: 'pending' } })
+        return res.json({ status: 200, message: `Data fetched`, ...pagination, data: rows, amount: pendingamts })
+
     } catch (error) {
         return res.json({ status: 500, msg: error.message });
     }
@@ -792,7 +869,10 @@ exports.OverturnKyc = async (req, res) => {
 
 exports.getAllPendingReq = async (req, res) => {
     try {
-        const users = await Transfer.findAll({
+        const { p, page_size} = req.query
+
+        const { page, offset, perPage } = PageOffset({ p, page_size })
+        const { rows, count } = await Transfer.findAndCountAll({
             where: { status: 'pending' },
 
             include: [
@@ -801,13 +881,15 @@ exports.getAllPendingReq = async (req, res) => {
                     attributes: { exclude: Excludes }
                 },
             ],
-            order: [[`createdAt`, 'DESC']]
-
+            order: [[`createdAt`, 'DESC']],
+            offset,
+            limit: perPage,
         })
+        const pagination = ServerPagination({ page, perPage, count })
+
         const pendingamts = await Transfer.sum('amount', { where: { status: 'pending' } })
-        if (!users) return res.json({ status: 404, msg: 'Transfers not found' })
-        if (!pendingamts) return res.json({ status: 404, msg: 'Transfers amounts not found' })
-        return res.json({ status: 200, msg: 'fetch success', data: users, amount: pendingamts })
+        return res.json({ status: 200, message: `Data fetched`, ...pagination, data: rows, amount: pendingamts })
+
     } catch (error) {
         return res.json({ status: 500, msg: error.message })
     }
@@ -883,7 +965,7 @@ exports.AdminCreateCards = async (req, res) => {
             visa_type,
             userid: findUser.id
         });
-        fetchCardRequest.created ='true'
+        fetchCardRequest.created = 'true'
         await fetchCardRequest.save()
         await Notify.create({
             type: 'Vitual Card Creation',
@@ -897,9 +979,9 @@ exports.AdminCreateCards = async (req, res) => {
             username: findUser.firstname,
             date: moment().format('DD-MM-YYYY hh:mm A'),
             cardtype: type,
-            message:`We are pleased to inform you that your virtual ${type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()} Card has been successfully created. You can now use your card to perform transactions seamlessly. Below are the details of your card request.`,
+            message: `We are pleased to inform you that your virtual ${type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()} Card has been successfully created. You can now use your card to perform transactions seamlessly. Below are the details of your card request.`,
             visatype: visa_type ? visa_type : ''
-          })
+        })
 
         return res.json({ status: 200, msg: 'Card created successfully', cards })
     } catch (error) {
@@ -907,19 +989,27 @@ exports.AdminCreateCards = async (req, res) => {
     }
 }
 
-exports.getAllVirtualRequests = async (req,res) =>{
+exports.getAllVirtualRequests = async (req, res) => {
     try {
-        const reqs = await Card_Requests.findAll({ where:{created:'false'},
-            include:[
+        const { p, page_size} = req.query
+
+        const { page, offset, perPage } = PageOffset({ p, page_size })
+        const { rows, count } = await Card_Requests.findAndCountAll({
+            where: { created: 'false' },
+            include: [
                 {
-                    model: User, as :'card_owner',
+                    model: User, as: 'card_owner',
                     attributes: {
                         exclude: Excludes
                     }
                 }
-            ]
+            ],
+            offset,
+            limit: perPage,
         })
-        return res.json({ status: 200, msg: 'fetched successfully', data:reqs })
+        const pagination = ServerPagination({ page, perPage, count })
+        return res.json({ status: 200, message: `Cards fetched`, ...pagination, data: rows })
+        
     } catch (error) {
         ServerError(res, error)
     }
