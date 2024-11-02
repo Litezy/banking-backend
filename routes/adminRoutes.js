@@ -1,10 +1,11 @@
 const { adminPrivacy } = require("../auth/UserAuth")
-const { getAllUsers, getAllDeposits, getPaymentProof, getAllPlans, getAllTrans, getUserBanks, getUserCards, CreateUser, ValidateDeposits, InitiateDeposits, FindUserEmail, InitiateWithdraw, AlterTransaDate, addAdminBank, unhideBank, getAdminBanks, createVerification,  getAllTransfers, DeclineDeposits, getSettledDeposits, removeAdminBank, getAllEmailSubs, getAllContacts, getAllVerifications, sendPaymentOtp, confirmTransfer, getSingleTransfer, getAllActiveTickets, getAllClosedTickets,getKYCUsers, getAllPendingUserKYCS, getAllVerifiedUserKYCS, getOneUserKyc, ApproveKYC, OverturnKyc, getAllPendingReq, getAllTerminatedSavings, getAllCompletedSavings, getDeposits, getAllTickets, getCompletedTransfers, getAllApprovedKycs, AdminCreateCards, getAllVirtualRequests, GetSingleUserByID, UpdateUserAccount } = require("../controllers/adminControllers")
+const { getAllUsers, getAllDeposits, getPaymentProof, getAllPlans, getAllTrans, getUserBanks, getUserCards, CreateUser, ValidateDeposits, InitiateDeposits, FindUserEmail, InitiateWithdraw, AlterTransaDate, addAdminBank, unhideBank, getAdminBanks, createVerification,  getAllTransfers, DeclineDeposits, getSettledDeposits, removeAdminBank, getAllEmailSubs, getAllContacts, getAllVerifications, sendPaymentOtp, confirmTransfer, getSingleTransfer, getAllActiveTickets, getAllClosedTickets,getKYCUsers, getAllPendingUserKYCS, getAllVerifiedUserKYCS, getOneUserKyc, ApproveKYC, OverturnKyc, getAllPendingReq, getAllTerminatedSavings, getAllCompletedSavings, getDeposits, getAllTickets, getCompletedTransfers, getAllApprovedKycs, AdminCreateCards, getAllVirtualRequests, GetSingleUserByID, UpdateUserAccount, AdminBoardOverview } = require("../controllers/adminControllers")
 const { createMessageAdmin, getOneTicketMessagesAdmin, closeTicket } = require("../controllers/ticketsControllers")
 
 const router = require(`express`).Router()
 
 router.get('/all-users', adminPrivacy,getAllUsers)
+router.get('/admin-board-overview', adminPrivacy,AdminBoardOverview)
 router.get('/user/:id', adminPrivacy,GetSingleUserByID)
 router.get('/all-depo', adminPrivacy, getAllDeposits)
 router.get('/all-deposits', adminPrivacy, getDeposits)

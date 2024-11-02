@@ -679,15 +679,6 @@ exports.getAllEmailSubs = async (req, res) => {
         return res.json({ status: 500, msg: error.message });
     }
 }
-exports.getAllContacts = async (req, res) => {
-    try {
-        const subs = await Contact.findAll()
-        if (!subs) return res.json({ status: 404, msg: 'contacts not found' })
-        return res.json({ status: 200, msg: "success", data: subs })
-    } catch (error) {
-        return res.json({ status: 500, msg: error.message });
-    }
-}
 
 exports.sendPaymentOtp = async (req, res) => {
     try {
@@ -1010,6 +1001,89 @@ exports.getAllVirtualRequests = async (req, res) => {
         const pagination = ServerPagination({ page, perPage, count })
         return res.json({ status: 200, message: `Cards fetched`, ...pagination, data: rows })
         
+    } catch (error) {
+        ServerError(res, error)
+    }
+}
+
+exports.AdminBoardOverview = async (req, res) => {
+    try {
+        
+        const users = await User.findAndCountAll({})
+        const activeTickets = await Ticket.findAndCountAll({
+            where: { status: 'active' }
+        })
+        const closedTickets = await Ticket.findAndCountAll({
+            where: { status: 'closed' },
+        })
+        const allDepo = await User.sum('balance')
+
+        const allTrans = await Transactions.findAndCountAll({})
+
+        const plans = await Savings.findAndCountAll()
+
+        const kycs = await KYC.findAndCountAll()
+
+        const pendingKycs = await KYC.findAndCountAll({
+            where: { status: 'pending' },
+        })
+        const subs = await NewsLetter.findAndCountAll()
+
+        const verifiedKycs = await KYC.findAndCountAll({ where: { status: 'verified' } })
+
+        const contacts = await Contact.findAndCountAll()
+
+        const deposits = await Deposit.findAndCountAll()
+
+        const pendingTransfers = await Transfer.findAndCountAll({
+            where: { status: 'pending' },
+        })
+        const pendingamts = await Transfer.sum('amount', { where: { status: 'pending' } })
+
+
+        const tickets = await Ticket.findAndCountAll()
+
+        const allTerminatedSavings = await Savings.findAndCountAll({ where: { status: 'terminated' } })
+
+        const allTerminatedSavingsAmount = await Savings.sum('current', { where: { status: 'terminated' } })
+
+
+        const completedSavings = await Savings.findAndCountAll({ where: { status: 'complete' } })
+        const completedSavingsAmount = await Savings.sum('current', { where: { status: 'complete' } })
+        
+        const banks = await Banks.findAndCountAll({})
+
+        const cards = await Cards.findAndCountAll({})
+
+        const adminBanks = await adminBank.findAndCountAll()
+
+
+        const details = [
+            {title: "total users", content: users.count, currency: false},
+            {title: "total users balance", content: allDepo, currency: true},
+            {title: "total transactions", content: allTrans.count, currency: false},
+            {title: "total deposits", content: deposits.count, currency: false},
+            {title: "total user banks", content: banks.count, currency: false},
+            {title: "total admin banks", content: adminBanks.count, currency: false},
+            {title: "total user cards", content: cards.count, currency: false},
+            {title: "total savings plans", content: plans.count, currency: false},
+            {title: "total pending transfers", content: pendingTransfers.count, currency: false},
+            {title: "total pending transfers amount", content: pendingamts, currency: true},
+            {title: "total terminated savings", content: allTerminatedSavings.count, currency: false},
+            {title: "total terminated savings amount", content: allTerminatedSavingsAmount, currency: true},
+            {title: "total completed savings", content: completedSavings.count, currency: false},
+            {title: "total completed savings amount", content: completedSavingsAmount, currency: true},
+            {title: "total kyc", content: kycs.count, currency: false},
+            {title: "total pending kyc", content: pendingKycs.count, currency: false},
+            {title: "total approved kyc", content: verifiedKycs.count, currency: false},
+            {title: "total tickets", content: tickets.count, currency: false},
+            {title: "total active tickets", content: activeTickets.count, currency: false},
+            {title: "total closed tickets", content: closedTickets.count, currency: false},
+            {title: "total contacts", content: contacts.count, currency: false},
+            {title: "total newsletters subscribers", content: subs.count, currency: false},
+            ]
+
+        return res.json({status: 200, data: details})
     } catch (error) {
         ServerError(res, error)
     }
