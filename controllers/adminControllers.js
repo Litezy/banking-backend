@@ -16,7 +16,8 @@ const Transfer = require('../models').transfers
 const Verification = require('../models').verifications
 const NewsLetter = require('../models').newsletters
 const Contact = require('../models').contacts
-const sendMail = require('../emails/mailConfig')
+const sendMail = require('../emails/mailConfig');
+const { Op } = require('sequelize');
 const Ticket = require('../models').tickets
 const Card = require('../models').cards
 const Card_Requests = require('../models').card_requests
@@ -27,10 +28,28 @@ const Card_Requests = require('../models').card_requests
 
 exports.getAllUsers = async (req, res) => {
     try {
-        const { p, page_size} = req.query
+        const { p, page_size, search} = req.query
+        let where = {}
+        if (search) {
+            where = {
+                where: {
+                    [Op.or]: [
+                        { firstname: { [Op.like]: `%${search}%` } },
+                        { lastname: { [Op.like]: `%${search}%` } },
+                        { email: { [Op.like]: `%${search}%` } },
+                        { phone: { [Op.like]: `%${search}%` } },
+                        { role: { [Op.like]: `%${search}%` } },
+                        { status: { [Op.like]: `%${search}%` } },
+                        { account_number: { [Op.like]: `%${search}%` } },
+                        { gender: { [Op.like]: `%${search}%` } },
+                    ]
+                }
+            }
+        }
 
         const { page, offset, perPage } = PageOffset({ p, page_size })
         const { rows, count } = await User.findAndCountAll({
+            ...where,
             order: [['createdAt', 'DESC']],
             offset,
             limit: perPage,
@@ -304,7 +323,21 @@ exports.getAllPlans = async (req, res) => {
 }
 exports.getAllTrans = async (req, res) => {
     try {
-        const { p, page_size} = req.query
+        const { p, page_size, search} = req.query
+        let where = {}
+        if (search) {
+            where = {
+                where: {
+                    [Op.or]: [
+                        { type: { [Op.like]: `%${search}%` } },
+                        { status: { [Op.like]: `%${search}%` } },
+                        { amount: { [Op.like]: `%${search}%` } },
+                        { transaction_id: { [Op.like]: `%${search}%` } },
+                        { date: { [Op.like]: `%${search}%` } },
+                    ]
+                }
+            }
+        }
 
         const { page, offset, perPage } = PageOffset({ p, page_size })
         const { rows, count } = await Transactions.findAndCountAll({
@@ -312,12 +345,13 @@ exports.getAllTrans = async (req, res) => {
                 model: User, as: 'usertransactions',
                 attributes: { exclude: Excludes }
             }],
+            ...where,
             order: [['date', 'ASC']],
             offset,
             limit: perPage,
         })
         const pagination = ServerPagination({ page, perPage, count })
-        return res.json({ status: 200, message: `Transactions fetched`, ...pagination, data: rows })
+        return res.json({ style: search, status: 200, message: `Transactions fetched`, ...pagination, data: rows })
         
     } catch (error) {
         return res.json({ status: 500, msg: error.message })
@@ -562,7 +596,21 @@ exports.createVerification = async (req, res) => {
 
 exports.getCompletedTransfers = async (req, res) => {
     try {
-        const { p, page_size} = req.query
+        const { p, page_size, search} = req.query
+        let where = {}
+        if (search) {
+            where = {
+                where: {
+                    [Op.or]: [
+                        { type: { [Op.like]: `%${search}%` } },
+                        { status: { [Op.like]: `%${search}%` } },
+                        { amount: { [Op.like]: `%${search}%` } },
+                        { transaction_id: { [Op.like]: `%${search}%` } },
+                        { date: { [Op.like]: `%${search}%` } },
+                    ]
+                }
+            }
+        }
 
         const { page, offset, perPage } = PageOffset({ p, page_size })
         const { rows, count } = await Transfer.findAndCountAll({
@@ -574,6 +622,7 @@ exports.getCompletedTransfers = async (req, res) => {
                     attributes: { exclude: Excludes }
                 },
             ],
+            ...where,
             order: [[`updatedAt`, 'DESC']],
             offset,
             limit: perPage,
@@ -935,9 +984,6 @@ exports.getAllApprovedKycs = async (req, res) => {
         return res.json({ status: 500, msg: error.message })
     }
 }
-
-
-//cards
 
 exports.AdminCreateCards = async (req, res) => {
     try {
